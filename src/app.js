@@ -10,6 +10,9 @@ const contactRoutes = require('./routes/contactRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const iotRoutes = require('./routes/iotRoutes');
+const productRoutes = require('./routes/productRoutes');
+const saasRoutes = require('./routes/saasRoutes');
+const demoSessionRoutes = require('./routes/demoSessionRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -19,6 +22,7 @@ const allowedOrigins = [
   'http://localhost:3001',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
+
   process.env.CLIENT_URL,
   process.env.CLIENT_URL1,
 ].filter(Boolean);
@@ -60,6 +64,9 @@ app.use('/api', contactRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', uploadRoutes);
 app.use('/api', iotRoutes);
+app.use('/api', productRoutes);
+app.use('/api', saasRoutes);
+app.use('/api', demoSessionRoutes);
 
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.get('/admin', (req, res) => {

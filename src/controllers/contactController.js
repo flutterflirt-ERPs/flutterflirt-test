@@ -29,7 +29,13 @@ const ensureContactTable = async () => {
 const createContactQuery = async (req, res) => {
   try {
     await ensureContactTable();
-    const { name, email, phone = '', companyName = '', message } = req.body;
+    const { name, email, phone = '', companyName = '', message, website_url } = req.body;
+
+    // Honeypot trap: if bot filled this hidden field, silently return success without storing
+    if (website_url && String(website_url).trim().length > 0) {
+      console.warn(`[SPAM BLOCKED] Honeypot field triggered from IP: ${req.ip}, email: ${email}`);
+      return res.status(200).json({ message: 'Contact query submitted successfully' });
+    }
 
     if (!name || !email || !message) {
       return res.status(400).json({ message: 'Name, email, and message are required' });

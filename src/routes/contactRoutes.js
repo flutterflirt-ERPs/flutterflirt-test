@@ -3,9 +3,10 @@ const router = express.Router();
 const contactController = require('../controllers/contactController');
 const authMiddleware = require('../middleware/auth');
 const validate = require('../middleware/validate');
+const { contactLimiter } = require('../middleware/rateLimiter');
 const { createContactSchema } = require('../validations/contactValidations');
 
-router.post('/contact', validate(createContactSchema), contactController.createContactQuery);
+router.post('/contact', contactLimiter, validate(createContactSchema), contactController.createContactQuery);
 router.get('/admin/contact-queries', authMiddleware, contactController.getAllContactQueries);
 router.get('/admin/contact-queries/:id', authMiddleware, contactController.getContactQueryById);
 router.patch('/admin/contact-queries/:id/status', authMiddleware, contactController.updateContactQueryStatus);
