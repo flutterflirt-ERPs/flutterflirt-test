@@ -21,6 +21,8 @@ const getAuthor = (item: BlogItem): string => {
   return "FlutterFlirt Team";
 };
 
+import type { Metadata } from "next";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const formatS3Url = (url: string | null | undefined): string => {
@@ -35,6 +37,72 @@ const formatS3Url = (url: string | null | undefined): string => {
   }
   return url;
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  let blog: any = null;
+
+  try {
+    const res = await fetch(`${API_URL}/api/blogs/${slug}`, {
+      next: { revalidate: 60 },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      blog = data.blog || data.data;
+    }
+  } catch {
+    // fallback
+  }
+
+  if (!blog) {
+    blog = blogs.find((b) => b.slug === slug);
+  }
+
+  if (!blog) {
+    return {
+      title: "Blog Post Not Found",
+    };
+  }
+
+  const title = blog.title;
+  const description =
+    blog.excerpt ||
+    (typeof blog.content === "string"
+      ? blog.content.replace(/<[^>]+>/g, "").slice(0, 160)
+      : "Read this article on the FlutterFlirt blog.");
+  const imageUrl = formatS3Url(blog.coverImage || blog.image);
+  const canonicalUrl = `https://flutterflirt.com/blog/${slug}`;
+
+  return {
+    title: title,
+    description: description,
+    alternates: {
+      canonical: `/blog/${slug}`,
+    },
+    openGraph: {
+      title: `${title} | FlutterFlirt`,
+      description: description,
+      url: canonicalUrl,
+      type: "article",
+      images: [
+        {
+          url: imageUrl,
+          alt: title,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | FlutterFlirt`,
+      description: description,
+      images: [imageUrl],
+    },
+  };
+}
 
 export const dynamicParams = true; // allow dynamic paths that are not pre-rendered
 

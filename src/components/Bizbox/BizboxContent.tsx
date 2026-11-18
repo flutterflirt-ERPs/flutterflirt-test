@@ -1169,14 +1169,14 @@ export default function BizboxContent() {
           </div>
 
           <div className="mt-14 pt-8 border-t border-slate-800 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-400 font-mono">
-            <span>FlutterFlirt Private Limited</span>
+            <span>FlutterFlirt Technologies Pvt. Ltd.</span>
             <span>•</span>
             <a href="mailto:info@flutterflirt.com" className="hover:text-white transition-colors">
               info@flutterflirt.com
             </a>
             <span>•</span>
-            <a href="https://www.flutterflirt.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
-              www.flutterflirt.com
+            <a href="https://flutterflirt.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">
+              flutterflirt.com
             </a>
           </div>
         </div>

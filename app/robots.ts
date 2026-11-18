@@ -5,7 +5,6 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/flutterflirt-admin-login/"],
     },
     sitemap: "https://flutterflirt.com/sitemap.xml",
   };

@@ -7,7 +7,7 @@ const locations = [
   },
   {
     city: "New York",
-    country: "U.S",
+    country: "U.S.",
   },
   {
     city: "Bhubaneswar",
@@ -15,7 +15,7 @@ const locations = [
   },
   {
     city: "Kentucky",
-    country: "U.S",
+    country: "U.S.",
   },
   {
     city: "Mumbai",
@@ -79,7 +79,7 @@ export default function Footer() {
                 className="mt-2 inline-flex items-center gap-2 text-[14px] font-semibold text-white transition-colors hover:text-[#2773e6]"
               >
                 Start a conversation
-                <span aria-hidden="true">-&gt;</span>
+                <span aria-hidden="true">→</span>
               </Link>
             </div>
 
@@ -99,7 +99,7 @@ export default function Footer() {
                 </Link>
 
                 <Link
-                  href="/services"
+                  href="/terms"
                   className="
                     text-[15px]
                     text-[#4b5565]
@@ -107,7 +107,7 @@ export default function Footer() {
                     hover:text-white
                   "
                 >
-                  Service Policies
+                  Terms of Service
                 </Link>
               </div>
 
@@ -278,7 +278,9 @@ export default function Footer() {
 
               {/* LinkedIn */}
               <a
-                href="https://www.linkedin.com/company/flutterflirt?originalSubdomain=in"
+                href="https://www.linkedin.com/company/flutterflirt/"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="LinkedIn"
                 className="transition-colors hover:text-[#2773e6]"
               >
@@ -294,6 +296,8 @@ export default function Footer() {
               {/* Instagram */}
               <a
                 href="https://www.instagram.com/official.flutterflirt/"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="Instagram"
                 className="transition-colors hover:text-[#2773e6]"
               >
@@ -319,6 +323,8 @@ export default function Footer() {
               {/* YouTube */}
               <a
                 href="https://www.youtube.com/@flutterflirt"
+                target="_blank"
+                rel="noopener noreferrer"
                 aria-label="YouTube"
                 className="transition-colors hover:text-[#2773e6]"
               >

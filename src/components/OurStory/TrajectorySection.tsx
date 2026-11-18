@@ -48,8 +48,7 @@ const STEPS: MilestoneStep[] = [
   },
   {
     id: 4,
-    label: "→",
-    isArrow: true,
+    label: "04",
     dateTag: "2025 & BEYOND",
     tagVariant: "navy",
     title: "The Future",

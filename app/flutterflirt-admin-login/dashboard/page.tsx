@@ -19,7 +19,7 @@ import {
   ShieldCheck,
   ArrowUpRight
 } from "lucide-react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/Sidebar";
 import { PopupToast } from "@/components/ui/dialog-popup";
 
@@ -189,7 +189,6 @@ export default function AdminDashboardPage() {
           <div className="flex-1 flex flex-col min-w-0">
             <header className="sticky top-0 z-30 flex items-center justify-between bg-white/75 backdrop-blur-md px-6 py-4">
               <div className="flex items-center gap-3">
-                <SidebarTrigger />
                 <div className="animate-pulse">
                   <div className="h-5 w-24 bg-gray-200 rounded mb-1.5"></div>
                   <div className="h-3 w-40 bg-gray-200 rounded"></div>
@@ -265,7 +264,6 @@ export default function AdminDashboardPage() {
           {/* Elegant Line-Free Header */}
           <header className="sticky top-0 z-30 flex items-center justify-between bg-white/75 backdrop-blur-md px-6 py-4">
             <div className="flex items-center gap-3">
-              <SidebarTrigger />
               <div>
                 <h1 className="text-lg font-bold text-[#142845] tracking-tight">
                   Overview

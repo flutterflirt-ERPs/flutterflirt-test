@@ -9,6 +9,12 @@ export const metadata: Metadata = {
   description:
     "Explore practical insights from FlutterFlirt on Dynamics 365, Power Platform, Azure, software delivery, and enterprise technology.",
   alternates: { canonical: "/blog" },
+  openGraph: {
+    title: "Insights on ERP, CRM, Automation, and Technology | FlutterFlirt",
+    description:
+      "Explore practical insights from FlutterFlirt on Dynamics 365, Power Platform, Azure, software delivery, and enterprise technology.",
+    url: "https://flutterflirt.com/blog",
+  },
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";

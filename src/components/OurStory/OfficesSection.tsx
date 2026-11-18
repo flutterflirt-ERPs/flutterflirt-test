@@ -225,7 +225,7 @@ export default function OfficesSection() {
               </h2>
 
               <p className="mt-3.5 max-w-[620px] text-[13.5px] sm:text-[14.5px] md:text-[15px] text-[#475569] leading-relaxed">
-                From our headquarters in Innovation District, CA, to hubs across the globe, we are strategically positioned to deploy top-tier talent wherever complex systemic challenges arise. We operate as one unified entity, regardless of geography.
+                From our headquarters in Bengaluru, India, to hubs across the globe and in the U.S., we are strategically positioned to deploy top-tier talent wherever complex systemic challenges arise. We operate as one unified entity, regardless of geography.
               </p>
             </div>
 

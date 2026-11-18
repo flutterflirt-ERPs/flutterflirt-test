@@ -23,19 +23,21 @@ export default function BizboxPopup() {
     // Show trigger badge on other pages
     setBadgeVisible(true);
 
-    // Auto-trigger: Open automatically after 3.5s if not dismissed in this session
-    const isDismissed = sessionStorage.getItem("ff_bizbox_popup_dismissed");
-    if (!isDismissed) {
+    // Auto-trigger: Open automatically after 5s once per 24 hours
+    const lastDismissed = localStorage.getItem("ff_bizbox_popup_dismissed_time");
+    const isRecentlyDismissed = lastDismissed && (Date.now() - parseInt(lastDismissed, 10)) < 24 * 60 * 60 * 1000;
+
+    if (!isRecentlyDismissed) {
       const timer = setTimeout(() => {
         setIsOpen(true);
-      }, 3500);
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [pathname]);
 
   const handleDismiss = () => {
     setIsOpen(false);
-    sessionStorage.setItem("ff_bizbox_popup_dismissed", "true");
+    localStorage.setItem("ff_bizbox_popup_dismissed_time", Date.now().toString());
   };
 
   const handleOpenModal = () => {
@@ -50,28 +52,25 @@ export default function BizboxPopup() {
       <AnimatePresence>
         {badgeVisible && !isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.85, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.85, y: 15 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.2 }}
             className="fixed bottom-6 left-6 z-[9990]"
           >
             <button
               type="button"
               onClick={handleOpenModal}
-              className="group relative flex items-center gap-2.5 rounded-full border border-blue-500/30 bg-[#0a1122]/90 px-4 py-2 text-white shadow-[0_8px_32px_rgba(20,55,140,0.35)] backdrop-blur-md transition-all duration-200 hover:scale-105 hover:border-blue-400 hover:bg-[#0e1933] hover:shadow-[0_12px_40px_rgba(37,99,235,0.45)] active:scale-95 cursor-pointer"
+              className="group relative flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-white/95 px-3.5 py-1.5 text-slate-800 shadow-md shadow-slate-900/5 backdrop-blur-md transition hover:border-slate-300 hover:bg-slate-50/90 active:scale-[0.98] cursor-pointer"
               aria-label="View BizBox ERP"
             >
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
-              </span>
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
 
-              <span className="text-[13px] font-bold tracking-tight text-white group-hover:text-blue-200 transition-colors">
+              <span className="text-xs font-semibold tracking-tight text-slate-800 group-hover:text-slate-950 transition-colors">
                 BizBox ERP
               </span>
 
-              <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-blue-300">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200/60">
                 New
               </span>
             </button>
@@ -84,14 +83,14 @@ export default function BizboxPopup() {
          ───────────────────────────────────────────────────────────── */}
       <AnimatePresence>
         {isOpen && (
-          <div className="fixed inset-0 z-[9998] flex items-center justify-center p-3 sm:p-5 md:p-6 lg:p-8 overflow-y-auto">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 pb-24 sm:p-5 md:p-6 lg:p-8 overflow-y-auto">
             {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={handleDismiss}
-              className="fixed inset-0 bg-slate-950/65 backdrop-blur-md"
+              className="fixed inset-0 bg-slate-950/70 backdrop-blur-md"
             />
 
             {/* Modal Box */}

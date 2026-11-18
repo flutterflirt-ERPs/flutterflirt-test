@@ -8,10 +8,16 @@ import ServicesPhases from "@/components/Services/ServicesPhases";
 import ServicesCTA from "@/components/Services/ServicesCTA";
 
 export const metadata: Metadata = {
-  title: "Enterprise Services & Technology Practices | FlutterFlirt",
+  title: "Enterprise Services & Technology Practices",
   description:
     "Explore FlutterFlirt's comprehensive technology and consulting practices: Dynamics 365 ERP & CRM, Power Platform Automation, Azure Cloud Integrations, Custom React/Next.js Applications, and Resource Augmentation.",
   alternates: { canonical: "/services" },
+  openGraph: {
+    title: "Enterprise Services & Technology Practices | FlutterFlirt",
+    description:
+      "Explore FlutterFlirt's comprehensive technology and consulting practices: Dynamics 365 ERP & CRM, Power Platform Automation, Azure Cloud Integrations, and Custom Software.",
+    url: "https://flutterflirt.com/services",
+  },
 };
 
 export default function ServicesPage() {

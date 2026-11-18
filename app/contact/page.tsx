@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   description:
     "Tell FlutterFlirt about your ERP, CRM, automation, cloud, or custom software project and discover a practical path forward.",
   alternates: { canonical: "/contact" },
+  openGraph: {
+    title: "Contact Our Technology Consulting Team | FlutterFlirt",
+    description:
+      "Tell FlutterFlirt about your ERP, CRM, automation, cloud, or custom software project and discover a practical path forward.",
+    url: "https://flutterflirt.com/contact",
+  },
 };
 
 export default function ContactPage() {

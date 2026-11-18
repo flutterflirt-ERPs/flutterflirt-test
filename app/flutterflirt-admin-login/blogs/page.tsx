@@ -21,10 +21,12 @@ import {
   Image as ImageIcon,
   Menu,
   LogOut,
-  MessageSquare
+  MessageSquare,
+  LayoutGrid,
+  List as ListIcon
 } from "lucide-react";
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/Sidebar"
 import { PopupModal, PopupToast } from "@/components/ui/dialog-popup";
 
@@ -59,6 +61,7 @@ export default function BlogsPage() {
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"list" | "create" | "edit">("list");
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [editingBlogId, setEditingBlogId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -414,7 +417,6 @@ export default function BlogsPage() {
           <div className="flex-1 flex flex-col min-w-0">
             <header className="sticky top-0 z-30 flex items-center justify-between bg-white/75 backdrop-blur-md px-6 py-4">
               <div className="flex items-center gap-3">
-                <SidebarTrigger />
                 <div className="flex items-center gap-2.5 animate-pulse">
                   <div className="w-10 h-10 bg-gray-200 rounded-2xl"></div>
                   <div>
@@ -448,7 +450,7 @@ export default function BlogsPage() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 min-h-screen bg-[#edf5ff] pb-20 pt-20 md:pt-15 w-full">
+      <main className="flex-1 min-h-screen bg-[#edf5ff] pb-20 w-full">
         {/* Custom Toast */}
         <PopupToast
           message={toastMessage}
@@ -468,77 +470,26 @@ export default function BlogsPage() {
           loading={isDeletingBlog}
         />
 
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-12 w-full">
-        {/* Mobile Header Navbar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#cbdff8] bg-white/95 px-6 py-4 backdrop-blur-md md:hidden">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563eb] text-white font-bold">
-              FF
-            </div>
-            <span className="font-serif font-bold text-[#142845]">Admin Panel</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-xl border border-[#cbe0fb] bg-white p-2 text-[#1e3b60] hover:bg-[#edf5ff] focus:outline-none"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </header>
-
-        {/* Mobile Dropdown Menu */}
-        {mobileMenuOpen && (
-          <div className="absolute left-0 right-0 top-[65px] z-50 border-b border-[#cbdff8] bg-white p-4 shadow-xl md:hidden animate-in slide-in-from-top-4 duration-200">
-            <nav className="flex flex-col gap-2">
-              <Link
-                href="/flutterflirt-admin-login"
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  pathname === "/flutterflirt-admin-login"
-                    ? "bg-[#edf3ff] text-[#2563eb]"
-                    : "text-[#526987] hover:bg-[#f0f5fc]"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <FileText className="h-4 w-4" />
-                <span>Blog Management</span>
-              </Link>
-              <Link
-                href="/flutterflirt-admin-login/queries"
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  pathname === "/flutterflirt-admin-login/queries"
-                    ? "bg-[#edf3ff] text-[#2563eb]"
-                    : "text-[#526987] hover:bg-[#f0f5fc]"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>Query Management</span>
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-red-600 transition hover:bg-[#fef2f2]"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
-              </button>
-            </nav>
-          </div>
-        )}
-          {/* Header */}
-          <div className="flex flex-col justify-between gap-4 border-b border-[#c9dff7] pb-6 md:flex-row md:items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#dbe8fc] px-3 py-1 text-xs font-bold text-[#1e40af]">
-                <ShieldCheck className="h-3 w-3" />
-                <span>Premium Access</span>
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-6">
+          {/* Compact Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#cbdff8]/70 pb-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb]">
+                <FileText className="h-5 w-5" />
               </div>
-              <h1 className="mt-3 font-serif text-[32px] font-bold text-[#10223d] md:text-[42px]">
-                Blog Management
-              </h1>
-              <p className="text-sm text-[#617b9d]">
-                Create and curate rich multi-section articles with Tiptap JSONB and auto-generated sidebar slugs.
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#10223d]">
+                    Blog Management
+                  </h1>
+                  <span className="rounded-full bg-[#dbe8fc] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1e40af]">
+                    Articles
+                  </span>
+                </div>
+                <p className="text-xs text-[#617b9d]">
+                  Publish and curate rich multi-section enterprise articles.
+                </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -546,18 +497,18 @@ export default function BlogsPage() {
                 <button
                   type="button"
                   onClick={() => setActiveTab("list")}
-                  className="rounded-xl border border-[#c2daf7] bg-white px-4 py-2.5 text-xs font-bold text-[#23456c] transition hover:bg-[#e4efff]"
+                  className="rounded-xl border border-[#c2daf7] bg-white px-3.5 py-2 text-xs font-bold text-[#23456c] transition hover:bg-[#e4efff]"
                 >
-                  ← Back to Articles List
+                  ← Back to Articles
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleStartCreate}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#2563eb] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-blue-500/20 transition hover:bg-[#1d4ed8]"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563eb] px-4 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-[#1d4ed8]"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Create New Blog</span>
+                  <span>Create Blog</span>
                 </button>
               )}
             </div>
@@ -565,28 +516,62 @@ export default function BlogsPage() {
 
           {/* TAB 1: BLOGS LIST */}
           {activeTab === "list" && (
-            <div className="mt-10">
+            <div>
               <div className="overflow-hidden rounded-[24px] border border-[#cbe0fb] bg-white shadow-[0_12px_40px_rgba(20,50,90,0.05)] w-full">
                 <div className="flex flex-col gap-4 border-b border-[#e5effb] bg-[#f8fbff] px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-[#1e3b60]">
                     All Articles ({blogs.length})
                   </h2>
-                  <div className="relative w-full max-w-sm">
-                    <input
-                      type="text"
-                      placeholder="Search articles by title or category..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-xl border border-[#cbe0fb] bg-white py-2 pl-4 pr-10 text-sm font-medium text-[#112239] focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20"
-                    />
-                    {searchQuery && (
+
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    {/* Search Input */}
+                    <div className="relative flex-1 sm:w-72">
+                      <input
+                        type="text"
+                        placeholder="Search articles by title or category..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full rounded-xl border border-[#cbe0fb] bg-white py-2 pl-4 pr-10 text-sm font-medium text-[#112239] focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8babc6] hover:text-[#1e3a60]"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Animated View Toggle (Card vs List) */}
+                    <div className="flex items-center rounded-xl border border-[#cbe0fb] bg-[#edf5ff] p-1 shadow-xs shrink-0">
                       <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8babc6] hover:text-[#1e3a60]"
+                        type="button"
+                        onClick={() => setViewMode("card")}
+                        title="Grid / Card View"
+                        aria-label="Grid / Card View"
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 ease-out active:scale-90 ${
+                          viewMode === "card"
+                            ? "bg-white text-[#2563eb] shadow-sm scale-105"
+                            : "text-[#6984a6] hover:text-[#1e3b60]"
+                        }`}
                       >
-                        <X className="h-4 w-4" />
+                        <LayoutGrid className="h-4 w-4" />
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => setViewMode("list")}
+                        title="List View"
+                        aria-label="List View"
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 ease-out active:scale-90 ${
+                          viewMode === "list"
+                            ? "bg-white text-[#2563eb] shadow-sm scale-105"
+                            : "text-[#6984a6] hover:text-[#1e3a60]"
+                        }`}
+                      >
+                        <ListIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -616,8 +601,9 @@ export default function BlogsPage() {
                           b.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
                           b.category?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
                       );
-                      const totalPages = Math.ceil(filtered.length / 10) || 1;
-                      const paginated = filtered.slice((page - 1) * 10, page * 10);
+                      const ITEMS_PER_PAGE = 12;
+                      const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+                      const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
                       if (filtered.length === 0) {
                         return (
@@ -629,85 +615,183 @@ export default function BlogsPage() {
 
                       return (
                         <>
-                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                            {paginated.map((blog) => (
-                              <div
-                                key={blog.id}
-                                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#cbe0fb] bg-white shadow-sm transition hover:shadow-md hover:border-[#9cb9df]"
-                              >
-                                <div className="h-32 bg-[#eaf2fd] overflow-hidden relative">
-                                  {blog.cover_image && (
-                                    <img
-                                      src={blog.cover_image}
-                                      alt={blog.title}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  )}
-                                  <div className="absolute top-3 left-3 flex gap-2">
-                                    <span
-                                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${blog.status === "published"
-                                        ? "bg-[#dcfce7] text-[#15803d]"
-                                        : "bg-[#fef3c7] text-[#b45309]"
-                                        }`}
-                                    >
-                                      {blog.status}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="flex flex-1 flex-col justify-between p-5">
-                                  <div>
-                                    <span className="mb-2 inline-block rounded-md bg-[#f0f5fc] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#2563eb]">
-                                      {blog.category || "General"}
-                                    </span>
-                                    <h3 className="line-clamp-2 font-serif text-lg font-bold leading-tight text-[#142845]">
-                                      {blog.title}
-                                    </h3>
-                                    <p className="mt-1 line-clamp-2 text-xs text-[#6984a6]">
-                                      {blog.excerpt}
-                                    </p>
-                                  </div>
-
-                                  <div className="mt-5 border-t border-[#f0f4fb] pt-4">
-                                    <div className="flex items-center justify-between text-xs text-[#718dae]">
-                                      <span>{blog.sections?.length || 0} sections</span>
-                                      <span>
-                                        {blog.published_at || blog.publishedAt
-                                          ? new Date(blog.published_at || blog.publishedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                                          : "Draft"}
+                          {viewMode === "card" ? (
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-in fade-in duration-200">
+                              {paginated.map((blog) => (
+                                <div
+                                  key={blog.id}
+                                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#cbe0fb] bg-white shadow-sm transition hover:shadow-md hover:border-[#9cb9df]"
+                                >
+                                  <div className="h-32 bg-[#eaf2fd] overflow-hidden relative">
+                                    {blog.cover_image && (
+                                      <img
+                                        src={blog.cover_image}
+                                        alt={blog.title}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    )}
+                                    <div className="absolute top-3 left-3 flex gap-2">
+                                      <span
+                                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${blog.status === "published"
+                                          ? "bg-[#dcfce7] text-[#15803d]"
+                                          : "bg-[#fef3c7] text-[#b45309]"
+                                          }`}
+                                      >
+                                        {blog.status}
                                       </span>
                                     </div>
-                                    <div className="mt-4 flex items-center justify-end gap-2">
-                                      <Link
-                                        href={`/blog/${blog.slug}`}
-                                        target="_blank"
-                                        className="rounded-lg p-2 text-[#2563eb] transition hover:bg-[#e4efff]"
-                                        title="View Public Page"
-                                      >
-                                        <ExternalLink className="h-4 w-4" />
-                                      </Link>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleStartEdit(blog)}
-                                        className="rounded-lg p-2 text-[#3b577a] transition hover:bg-[#e4efff] hover:text-[#1d4ed8]"
-                                        title="Edit Blog"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDelete(blog.id)}
-                                        className="rounded-lg p-2 text-[#dc2626] transition hover:bg-[#fee2e2]"
-                                        title="Delete Blog"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </button>
+                                  </div>
+
+                                  <div className="flex flex-1 flex-col justify-between p-5">
+                                    <div>
+                                      <span className="mb-2 inline-block rounded-md bg-[#f0f5fc] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-[#2563eb]">
+                                        {blog.category || "General"}
+                                      </span>
+                                      <h3 className="line-clamp-2 font-serif text-lg font-bold leading-tight text-[#142845]">
+                                        {blog.title}
+                                      </h3>
+                                      <p className="mt-1 line-clamp-2 text-xs text-[#6984a6]">
+                                        {blog.excerpt}
+                                      </p>
+                                    </div>
+
+                                    <div className="mt-5 border-t border-[#f0f4fb] pt-4">
+                                      <div className="flex items-center justify-between text-xs text-[#718dae]">
+                                        <span>{blog.sections?.length || 0} sections</span>
+                                        <span>
+                                          {blog.published_at || blog.publishedAt
+                                            ? new Date(blog.published_at || blog.publishedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                            : "Draft"}
+                                        </span>
+                                      </div>
+                                      <div className="mt-4 flex items-center justify-end gap-2">
+                                        <Link
+                                          href={`/blog/${blog.slug}`}
+                                          target="_blank"
+                                          className="rounded-lg p-2 text-[#2563eb] transition hover:bg-[#e4efff]"
+                                          title="View Public Page"
+                                        >
+                                          <ExternalLink className="h-4 w-4" />
+                                        </Link>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleStartEdit(blog)}
+                                          className="rounded-lg p-2 text-[#3b577a] transition hover:bg-[#e4efff] hover:text-[#1d4ed8]"
+                                          title="Edit Blog"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDelete(blog.id)}
+                                          className="rounded-lg p-2 text-[#dc2626] transition hover:bg-[#fee2e2]"
+                                          title="Delete Blog"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto rounded-2xl border border-[#e5effb] bg-white animate-in fade-in duration-200">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-[#f8fbff] border-b border-[#e5effb] text-[#526987] font-bold uppercase tracking-wider text-[11px]">
+                                    <th className="py-3.5 px-5">Article</th>
+                                    <th className="py-3.5 px-5">Category</th>
+                                    <th className="py-3.5 px-5">Status</th>
+                                    <th className="py-3.5 px-5">Sections</th>
+                                    <th className="py-3.5 px-5">Date</th>
+                                    <th className="py-3.5 px-5 text-right">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#e5effb]">
+                                  {paginated.map((blog) => (
+                                    <tr key={blog.id} className="hover:bg-[#f8fbff] transition group">
+                                      <td className="py-3.5 px-5">
+                                        <div className="flex items-center gap-3">
+                                          {blog.cover_image ? (
+                                            <img
+                                              src={blog.cover_image}
+                                              alt={blog.title}
+                                              className="h-10 w-14 rounded-lg object-cover border border-[#cbe0fb] shrink-0"
+                                            />
+                                          ) : (
+                                            <div className="flex h-10 w-14 items-center justify-center rounded-lg bg-[#eaf2fd] text-[#2563eb] border border-[#cbe0fb] shrink-0">
+                                              <FileText className="h-5 w-5" />
+                                            </div>
+                                          )}
+                                          <div className="min-w-0">
+                                            <h4 className="font-bold text-[#142845] text-xs line-clamp-1 group-hover:text-[#2563eb] transition">
+                                              {blog.title}
+                                            </h4>
+                                            <p className="text-[11px] text-[#6984a6] line-clamp-1 mt-0.5">
+                                              {blog.excerpt || "No excerpt provided"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="py-3.5 px-5">
+                                        <span className="inline-block rounded-md bg-[#f0f5fc] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#2563eb]">
+                                          {blog.category || "General"}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-5">
+                                        <span
+                                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide inline-block ${
+                                            blog.status === "published"
+                                              ? "bg-[#dcfce7] text-[#15803d]"
+                                              : "bg-[#fef3c7] text-[#b45309]"
+                                          }`}
+                                        >
+                                          {blog.status}
+                                        </span>
+                                      </td>
+                                      <td className="py-3.5 px-5 text-[#6984a6] font-medium">
+                                        {blog.sections?.length || 0} sections
+                                      </td>
+                                      <td className="py-3.5 px-5 text-[#6984a6]">
+                                        {blog.published_at || blog.publishedAt
+                                          ? new Date(blog.published_at || blog.publishedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                                          : "Draft"}
+                                      </td>
+                                      <td className="py-3.5 px-5 text-right">
+                                        <div className="inline-flex items-center gap-1">
+                                          <Link
+                                            href={`/blog/${blog.slug}`}
+                                            target="_blank"
+                                            className="rounded-lg p-1.5 text-[#2563eb] hover:bg-[#edf5ff] transition"
+                                            title="View Public Page"
+                                          >
+                                            <ExternalLink className="h-4 w-4" />
+                                          </Link>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleStartEdit(blog)}
+                                            className="rounded-lg p-1.5 text-[#3b577a] hover:bg-[#edf5ff] hover:text-[#1d4ed8] transition"
+                                            title="Edit Blog"
+                                          >
+                                            <Edit className="h-4 w-4" />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDelete(blog.id)}
+                                            className="rounded-lg p-1.5 text-[#dc2626] hover:bg-[#fee2e2] transition"
+                                            title="Delete Blog"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
 
                           {/* Pagination Controls */}
                           {totalPages > 1 && (

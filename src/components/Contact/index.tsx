@@ -87,22 +87,46 @@ function InputField({
   );
 }
 
-function TextareaField({ id, label, placeholder }: { id: string; label: string; placeholder: string }) {
+function TextareaField({ id, label, placeholder, required = false }: { id: string; label: string; placeholder: string; required?: boolean }) {
   const [focused, setFocused] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    setFocused(false);
+    const value = e.target.value.trim();
+    if (required && !value) {
+      setError(`${label} is required`);
+      return;
+    }
+    if (value && value.length < 10) {
+      setError("Please provide at least 10 characters");
+      return;
+    }
+    setError(null);
+  };
+
   return (
     <div>
       <label htmlFor={id} className={`block mb-1.5 text-[13px] font-semibold tracking-wide transition-colors ${focused ? "text-[#2563eb]" : "text-[#526987]"}`}>
-        {label}
+        {label} {required && <span className="text-[#F14F57]">*</span>}
       </label>
       <textarea
-        id={id} name={id} rows={4} placeholder={placeholder}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className={`w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#17243a] outline-none transition-all duration-200 placeholder:text-[#a3b8e5] ${focused
+        id={id} name={id} rows={4} placeholder={placeholder} required={required}
+        onFocus={() => { setFocused(true); setError(null); }}
+        onBlur={handleBlur}
+        className={`w-full resize-none rounded-[12px] border bg-white px-4 py-3 text-[15px] text-[#17243a] outline-none transition-all duration-200 placeholder:text-[#a3b8e5] ${
+          focused
             ? "border-[#2563eb] shadow-[0_0_0_3px_rgba(37,99,235,0.10)]"
-            : "border-[#a3b8e5] hover:border-[#7184a0]"
-          }`}
+            : error
+              ? "border-[#F14F57] shadow-[0_0_0_3px_rgba(241,79,87,0.10)]"
+              : "border-[#a3b8e5] hover:border-[#7184a0]"
+        }`}
       />
+      {error && (
+        <p className="mt-1 text-xs font-semibold text-[#F14F57] animate-in fade-in slide-in-from-top-1">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -124,6 +148,7 @@ export default function Contact() {
     const phone = formData.get("phone") as string;
     const company = formData.get("company") as string;
     const message = formData.get("message") as string;
+    const website_url = (formData.get("website_url") as string) || "";
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -138,6 +163,7 @@ export default function Contact() {
           email,
           phone,
           companyName: company,
+          website_url,
           message: `${message}\n\n[Interested Services: ${services.join(", ") || "None"}]`,
         }),
       });
@@ -390,6 +416,18 @@ export default function Contact() {
 
                   <form id="contact-form" onSubmit={handleSubmit} className="mt-8 space-y-6">
 
+                    {/* Anti-spam Honeypot field (hidden from human users, catches automated bots) */}
+                    <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
+                      <label htmlFor="website_url">Leave this field blank</label>
+                      <input
+                        type="text"
+                        id="website_url"
+                        name="website_url"
+                        tabIndex={-1}
+                        autoComplete="off"
+                      />
+                    </div>
+
                     <div className="grid gap-6 sm:grid-cols-2">
                       <InputField id="name" label="Your name" placeholder="Jane Smith" required />
                       <InputField id="email" label="Email address" placeholder="jane@company.com" required type="email" />
@@ -428,6 +466,7 @@ export default function Contact() {
                       id="message"
                       label="Project details"
                       placeholder="Tell us about your goals, current systems, and what success looks like for you..."
+                      required
                     />
 
                     <div className="flex flex-col gap-3 pt-1">

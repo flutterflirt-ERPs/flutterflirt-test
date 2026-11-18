@@ -12,7 +12,7 @@ interface StatCardConfig {
 
 const STATS: StatCardConfig[] = [
   {
-    value: "50+",
+    value: "100+",
     color: "text-[#059669]",
     title: ["Enterprise", "Deployments"],
     description: "Complex multi-country rollouts across retail, manufacturing, and financial services.",

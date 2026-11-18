@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/Sidebar"
-import { Loader2, MessageSquare, X, Send, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, MessageSquare, X, Send, Trash2, AlertTriangle, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PopupToast } from "@/components/ui/dialog-popup";
 
@@ -112,7 +112,7 @@ export default function QueriesPage() {
 
   useEffect(() => {
     if (token) loadQueries();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const updateStatus = async (id: string, status: string) => {
@@ -242,7 +242,7 @@ export default function QueriesPage() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex-1 min-h-screen bg-[#edf5ff] pb-20 w-full">
+      <main className="flex-1 min-h-screen bg-[#edf5ff] pb-20 w-full min-w-0 overflow-x-hidden">
 
         <PopupToast
           message={toastMessage}
@@ -250,37 +250,46 @@ export default function QueriesPage() {
           onClose={() => setToastMessage(null)}
         />
 
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12 w-full pt-4 md:pt-8">
+        <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 w-full min-w-0 pt-4 md:pt-6">
 
-          {/* Page Header */}
-          <div className="flex items-center gap-3 mb-2 pt-2">
-            <SidebarTrigger />
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#dbe8fc] px-3 py-1 text-xs font-bold text-[#1e40af]">
-              <MessageSquare className="h-3 w-3" />
-              <span>Inbox</span>
+          {/* Compact Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#cbdff8]/70 pb-4 mb-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb] shrink-0">
+                <MessageSquare className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#10223d]">
+                    Query Management
+                  </h1>
+                  <span className="rounded-full bg-[#dbe8fc] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#1e40af]">
+                    Inbox
+                  </span>
+                </div>
+                <p className="text-xs text-[#617b9d] truncate">
+                  Manage and respond to client contact inquiries.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-col justify-between gap-2 border-b border-[#c9dff7] pb-6 md:flex-row md:items-end mb-6">
-            <div>
-              <h1 className="mt-2 font-serif text-[28px] font-bold text-[#10223d] md:text-[42px]">
-                Query Management
-              </h1>
-              <p className="text-sm text-[#617b9d]">
-                Manage contact requests from your potential clients.
-              </p>
+
+            <div className="flex items-center gap-2">
+              <span className="rounded-xl border border-[#cbe0fb] bg-white px-3 py-1.5 text-xs font-semibold text-[#1e3b60] shadow-xs">
+                {filtered.length} Inquiries
+              </span>
             </div>
           </div>
 
           {/* Card Container */}
-          <div className="overflow-hidden rounded-[24px] border border-[#cbe0fb] bg-white shadow-[0_12px_40px_rgba(20,50,90,0.05)] w-full">
+          <div className="overflow-hidden rounded-[24px] border border-[#cbe0fb] bg-white shadow-[0_12px_40px_rgba(20,50,90,0.05)] w-full min-w-0">
 
             {/* Filters + Search */}
-            <div className="flex flex-col gap-4 border-b border-[#e5effb] bg-[#f8fbff] px-4 sm:px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-3">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-[#1e3b60]">
+            <div className="flex flex-col gap-4 border-b border-[#e5effb] bg-[#f8fbff] px-4 sm:px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-2.5 min-w-0">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#1e3b60]">
                   Contact Queries
                 </h2>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {(["all", "pending", "replied", "closed"] as const).map((status) => {
                     const count = status === "all"
                       ? queries.length
@@ -292,11 +301,10 @@ export default function QueriesPage() {
                         key={status}
                         type="button"
                         onClick={() => { setStatusFilter(status); setPage(1); }}
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 ${
-                          isSelected
+                        className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${isSelected
                             ? "border-[#2563eb] bg-[#2563eb] text-white shadow-[0_2px_10px_rgba(37,99,235,0.2)]"
                             : "border-[#cbdff8] bg-white text-[#526987] hover:border-[#2563eb] hover:text-[#2563eb]"
-                        }`}
+                          }`}
                       >
                         {label} ({count})
                       </button>
@@ -304,13 +312,13 @@ export default function QueriesPage() {
                   })}
                 </div>
               </div>
-              <div className="relative w-full sm:max-w-xs">
+              <div className="relative w-full lg:w-72 shrink-0">
                 <input
                   type="text"
                   placeholder="Search name, email, or company..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-[#cbe0fb] bg-white py-2 pl-4 pr-9 text-sm font-medium text-[#112239] focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20"
+                  className="w-full rounded-xl border border-[#cbe0fb] bg-white py-2 pl-4 pr-9 text-xs sm:text-sm font-medium text-[#112239] focus:border-[#2563eb] focus:outline-none focus:ring-2 focus:ring-[#2563eb]/20"
                 />
                 {searchQuery && (
                   <button
@@ -336,53 +344,69 @@ export default function QueriesPage() {
               </div>
             ) : (
               <>
-                {/* Desktop Table */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left text-sm text-[#3b577a]">
-                    <thead className="bg-[#f0f5fc] text-xs uppercase text-[#1e3b60]">
+                {/* Responsive Table with horizontal scroll container */}
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-xs sm:text-sm text-[#3b577a]">
+                    <thead className="bg-[#f0f5fc] text-[11px] uppercase text-[#1e3b60]">
                       <tr>
-                        <th className="px-6 py-4 font-bold">Name</th>
-                        <th className="px-6 py-4 font-bold">Email</th>
-                        <th className="px-6 py-4 font-bold">Company</th>
-                        <th className="px-6 py-4 font-bold">Date Received</th>
-                        <th className="px-6 py-4 font-bold">Status</th>
-                        <th className="px-6 py-4 font-bold">Actions</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold">Name</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold">Email</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold">Company</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold">Date Received</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold text-center">Status</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#e5effb]">
                       {paginated.map((q) => (
                         <tr key={q.id} className="transition hover:bg-[#f8fbff]">
-                          <td className="whitespace-nowrap px-6 py-4 font-medium text-[#112239]">{q.name}</td>
-                          <td className="px-6 py-4 text-xs text-[#4a6580]">{q.email}</td>
-                          <td className="whitespace-nowrap px-6 py-4">{q.companyName || '-'}</td>
-                          <td className="whitespace-nowrap px-6 py-4 text-xs font-medium text-[#526987]">
+                          <td className="px-4 lg:px-6 py-3.5 font-medium text-[#112239]">
+                            <span className="block font-semibold truncate max-w-[140px] xl:max-w-[180px]">{q.name}</span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-3.5 text-xs text-[#4a6580]">
+                            <span className="block truncate max-w-[170px] xl:max-w-[220px]" title={q.email}>
+                              {q.email}
+                            </span>
+                          </td>
+                          <td className="px-4 lg:px-6 py-3.5 text-xs">
+                            <span className="block truncate max-w-[120px] xl:max-w-[160px]">
+                              {q.companyName || '-'}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-xs font-medium text-[#526987]">
                             {formatQueryDate(q.createdAt || q.created_at)}
                           </td>
-                          <td className="whitespace-nowrap px-6 py-4">
+                          <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-center">
                             <StatusBadge status={q.status} />
                           </td>
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <div className="flex items-center gap-2">
+                          <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* View / Reply Button */}
                               <button
                                 onClick={() => { setSelectedQuery(q); setReplyText(""); }}
-                                className="rounded-md bg-[#2563eb] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#1d4ed8]"
+                                className="p-1.5 rounded-lg border border-[#cbe0fb] bg-white text-[#2563eb] hover:bg-[#edf5ff] transition shadow-xs"
+                                title="View / Reply"
                               >
-                                View / Reply
+                                <Eye className="w-3.5 h-3.5" />
                               </button>
+
+                              {/* Close Button */}
                               <button
                                 onClick={() => updateStatus(q.id, 'closed')}
                                 disabled={q.status === 'closed'}
-                                className="rounded-md bg-[#475569] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#334155] disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={q.status === 'Closed' ? "Already Closed" : "Close Request"}
                               >
-                                Close
+                                <X className="w-3.5 h-3.5" />
                               </button>
+
+                              {/* Delete Button */}
                               <button
                                 onClick={() => handleDeleteClick(q)}
-                                title="Delete query"
-                                className="inline-flex items-center gap-1.5 rounded-md bg-[#fee2e2] px-3 py-1.5 text-xs font-bold text-[#dc2626] transition hover:bg-[#fecaca]"
+                                className="p-1.5 rounded-lg border border-rose-200 bg-white text-[#dc2626] hover:bg-rose-50 transition shadow-xs"
+                                title="Delete"
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                Delete
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -390,47 +414,6 @@ export default function QueriesPage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-
-                {/* Mobile Cards */}
-                <div className="md:hidden divide-y divide-[#e5effb]">
-                  {paginated.map((q) => (
-                    <div key={q.id} className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-bold text-[#112239] text-sm">{q.name}</p>
-                          <p className="text-xs text-[#4a6580] break-all">{q.email}</p>
-                        </div>
-                        <StatusBadge status={q.status} />
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-[#526987]">
-                        <span>{q.companyName || '-'}</span>
-                        <span>{formatQueryDate(q.createdAt || q.created_at)}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <button
-                          onClick={() => { setSelectedQuery(q); setReplyText(""); }}
-                          className="flex-1 min-w-[100px] rounded-md bg-[#2563eb] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#1d4ed8]"
-                        >
-                          View / Reply
-                        </button>
-                        <button
-                          onClick={() => updateStatus(q.id, 'closed')}
-                          disabled={q.status === 'closed'}
-                          className="rounded-md bg-[#475569] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#334155] disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Close
-                        </button>
-                        <button
-                          onClick={() => handleDeleteClick(q)}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-[#fee2e2] px-3 py-2 text-xs font-bold text-[#dc2626] transition hover:bg-[#fecaca]"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
 
                 {/* Pagination */}

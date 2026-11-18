@@ -319,6 +319,10 @@ export default function PrivacyContent() {
                   <span className="text-[#2563eb] font-bold">▪</span>
                   <span><strong>Consent:</strong> When you have explicitly opted in to receive quarterly technical newsletters or marketing communications.</span>
                 </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[#2563eb] font-bold">▪</span>
+                  <span><strong>India DPDP Act (2023):</strong> As an India-headquartered entity (FlutterFlirt Technologies Pvt. Ltd.), we process digital personal data in strict compliance with the Digital Personal Data Protection Act, 2023, ensuring lawful processing for specified purposes, data minimization, and upholding Data Principal rights.</span>
+                </li>
               </ul>
             </section>
 

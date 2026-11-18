@@ -4,10 +4,16 @@ import Footer from "@/components/Footer";
 import PrivacyContent from "@/components/Privacy/PrivacyContent";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | FlutterFlirt Enterprise Data Governance",
+  title: "Privacy Policy | Enterprise Data Governance",
   description:
     "Learn how FlutterFlirt collects, uses, protects, and governs personal and enterprise data across our Dynamics 365, Azure, and digital transformation consulting practices.",
   alternates: { canonical: "/privacy" },
+  openGraph: {
+    title: "Privacy Policy | FlutterFlirt Enterprise Data Governance",
+    description:
+      "Learn how FlutterFlirt collects, uses, protects, and governs personal and enterprise data across our technology consulting practices.",
+    url: "https://flutterflirt.com/privacy",
+  },
 };
 
 export default function PrivacyPage() {

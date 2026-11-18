@@ -127,7 +127,7 @@ export default function ServicesHero() {
             <div className="mt-10 flex items-center gap-6 sm:gap-8 border-t border-[#cbd5e1]/60 pt-6">
               <div>
                 <p className="text-[22px] sm:text-[26px] font-bold text-[#0a0f18] font-sans leading-none">
-                  50+
+                  100+
                 </p>
                 <p className="text-[12px] sm:text-[13px] text-[#64748b] mt-1 font-medium">
                   Enterprise Deployments
