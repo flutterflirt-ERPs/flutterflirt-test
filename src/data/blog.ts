@@ -80,4 +80,24 @@ export const blogs = [
     readTime: "6 min read",
     image: "/blog/mb-certifications-worth-it.jpg",
   },
+  {
+    slug: "omnichannel-field-service-intelligence-unifying-customer-service-and-dispatch",
+    title: "Omnichannel Field Service Intelligence: Unifying Customer Service and Dispatch with Dynamics 365",
+    excerpt:
+      "How modern enterprises connect AI-powered voice bots, WhatsApp ticketing, and intelligent technician dispatch to boost first-time fix rates above 35%.",
+    category: "CRM & Field Service",
+    date: "Nov 18, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=1200&auto=format&fit=crop&q=80",
+  },
+  {
+    slug: "enterprise-azure-landing-zones-architecting-secure-cloud-ecosystems-for-erp-and-ai",
+    title: "Enterprise Azure Landing Zones: Architecting Secure, High-Throughput Cloud Ecosystems for ERP & AI",
+    excerpt:
+      "A strategic blueprint for engineering scalable, Zero-Trust Azure cloud landing zones that power mission-critical Dynamics 365, private OpenAI models, and automated Data Factory pipelines.",
+    category: "Azure & Cloud",
+    date: "Nov 18, 2026",
+    readTime: "7 min read",
+    image: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=1200&auto=format&fit=crop&q=80",
+  },
 ];
