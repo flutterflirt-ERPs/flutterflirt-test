@@ -127,7 +127,7 @@ export default async function BlogPost({
         <section className="relative overflow-hidden bg-[#eef6ff] px-6 pb-0 pt-36 md:px-12 md:pt-44 lg:px-20">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_65%_35%,#ffffff_0%,#edf6ff_50%,#dceaff_100%)]" />
 
-          <div className="relative mx-auto max-w-[900px]">
+          <div className="relative mx-auto max-w-[1200px]">
             {/* Back */}
             <Link
               href="/blog"
@@ -150,17 +150,17 @@ export default async function BlogPost({
 
             {/* Title */}
             <h1
-              className="mt-6 leading-[1.02] tracking-[-0.04em] text-[#17243a]"
+              className="mt-6 leading-[1.08] tracking-[-0.035em] text-[#17243a]"
               style={{
                 fontFamily: "var(--font-geist), Georgia, serif",
-                fontSize: "clamp(2rem, 4.5vw, 4rem)",
+                fontSize: "clamp(2rem, 4.5vw, 3.8rem)",
               }}
             >
               {blog.title}
             </h1>
 
             {/* Lead */}
-            <p className="mt-6 text-[17px] leading-[1.75] text-[#7184a0] md:text-[18px]">
+            <p className="mt-6 max-w-[960px] text-[17px] leading-[1.75] text-[#7184a0] md:text-[18px]">
               {blog.excerpt}
             </p>
 
@@ -173,13 +173,13 @@ export default async function BlogPost({
         ══════════════════════════════════════ */}
         <div className="relative bg-[#eef6ff] px-6 pt-10 md:px-12 lg:px-20">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_65%_35%,#ffffff_0%,#edf6ff_50%,#dceaff_100%)]" />
-          <div className="relative mx-auto max-w-[900px] overflow-hidden rounded-[24px] border border-[#a3b8e5] shadow-[0_20px_60px_rgba(59,100,160,0.12)]">
+          <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[28px] border border-[#a3b8e5] shadow-[0_20px_60px_rgba(59,100,160,0.12)]">
             <Image
               src={formatS3Url(blog.image || blog.cover_image)}
               alt={blog.title}
-              width={900}
-              height={500}
-              className="h-[240px] w-full object-cover sm:h-[360px] md:h-[460px]"
+              width={1200}
+              height={600}
+              className="h-[260px] w-full object-cover sm:h-[400px] md:h-[520px]"
               priority
             />
           </div>
@@ -266,8 +266,8 @@ export default async function BlogPost({
                 </div>
               )}
 
-              {/* Author + share */}
-              <div className="mt-12 flex flex-col gap-6 border-t border-[#edf3ff] pt-8 sm:flex-row sm:items-center sm:justify-between">
+              {/* Author */}
+              <div className="mt-12 flex items-center justify-between border-t border-[#edf3ff] pt-8">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#2563eb]">
                     <img src="/icon.svg" alt="FF" className="h-6 w-6 brightness-0 invert" />
@@ -276,17 +276,6 @@ export default async function BlogPost({
                     <p className="text-[14px] font-semibold text-[#17243a]">{blog.author || "FlutterFlirt Team"}</p>
                     <p className="text-[12.5px] text-[#7184a0]">Consulting & Technology team</p>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {["LinkedIn", "Twitter / X", "Copy link"].map((s) => (
-                    <button
-                      key={s}
-                      className="rounded-full border border-[#a3b8e5] px-4 py-1.5 text-[12px] font-medium text-[#7184a0] transition-all duration-200 hover:border-[#2563eb] hover:text-[#2563eb]"
-                    >
-                      {s}
-                    </button>
-                  ))}
                 </div>
               </div>
             </article>

@@ -292,7 +292,7 @@ export default function Blog({ initialBlogs = [] }: { initialBlogs?: BlogPost[] 
                         </div>
 
                         <h3
-                          className="mt-4 flex-1 leading-[1.15] tracking-[-0.02em] text-[#17243a]"
+                          className="mt-4 flex-1 line-clamp-2 leading-[1.25] tracking-[-0.02em] text-[#17243a]"
                           style={{
                             fontSize: "clamp(1.1rem, 1.4vw, 1.35rem)",
                           }}
