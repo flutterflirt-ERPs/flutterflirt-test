@@ -5,6 +5,21 @@ import { blogs } from "@/data/blog";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import TiptapRenderer from "@/components/Blog/TiptapRenderer";
+import type { Blog as BlogPostType, BlogSection } from "@/types/blog";
+
+type StaticBlogItem = (typeof blogs)[number];
+type BlogItem = BlogPostType | StaticBlogItem;
+
+const getImageSrc = (item: BlogItem): string | undefined => {
+  if ("cover_image" in item && item.cover_image) return item.cover_image;
+  if ("image" in item && item.image) return item.image;
+  return undefined;
+};
+
+const getAuthor = (item: BlogItem): string => {
+  if ("author" in item && item.author) return item.author;
+  return "FlutterFlirt Team";
+};
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -30,7 +45,7 @@ export async function generateStaticParams() {
       const data = await res.json();
       const dbBlogs = data.data || data.blogs || [];
       if (dbBlogs.length > 0) {
-        return dbBlogs.map((b: any) => ({ slug: b.slug }));
+        return dbBlogs.map((b: { slug: string }) => ({ slug: b.slug }));
       }
     }
   } catch (err) {
@@ -46,7 +61,7 @@ export default async function BlogPost({
 }) {
   const { slug } = await params;
   
-  let blog: any = null;
+  let blog: BlogItem | null = null;
 
   // Try fetching from database first
   try {
@@ -55,7 +70,7 @@ export default async function BlogPost({
     });
     if (res.ok) {
       const data = await res.json();
-      blog = data.blog || data.data;
+      blog = (data.blog || data.data) as BlogPostType;
     }
   } catch (err) {
     console.error("Error fetching blog from DB:", err);
@@ -63,18 +78,18 @@ export default async function BlogPost({
 
   // Fallback to static mock data if not found in DB
   if (!blog) {
-    blog = blogs.find((b) => b.slug === slug);
+    blog = blogs.find((b) => b.slug === slug) || null;
   }
 
   if (!blog) notFound();
 
   // Fetch all blogs from DB to generate related links
-  let allBlogs: any[] = [];
+  let allBlogs: BlogItem[] = [];
   try {
     const res = await fetch(`${API_URL}/api/blogs`);
     if (res.ok) {
       const data = await res.json();
-      allBlogs = data.data || data.blogs || [];
+      allBlogs = (data.data || data.blogs || []) as BlogPostType[];
     }
   } catch (err) {
     console.error("Error fetching related blogs from DB:", err);
@@ -85,28 +100,33 @@ export default async function BlogPost({
   }
 
   const related = allBlogs
-    .filter((b: any) => b.slug !== slug)
-    .filter((b: any) => b.category === blog.category)
-    .concat(allBlogs.filter((b: any) => b.slug !== slug && b.category !== blog.category))
+    .filter((b) => b.slug !== slug)
+    .filter((b) => b.category === blog.category)
+    .concat(allBlogs.filter((b) => b.slug !== slug && b.category !== blog.category))
     .slice(0, 3);
 
-  const getReadTime = (item: any) => {
-    if (item.readTime) return item.readTime;
+  const getReadTime = (item: BlogItem) => {
+    if ("readTime" in item && item.readTime) return item.readTime;
     let wordCount = 0;
-    item.sections?.forEach((s: any) => {
-      wordCount += s.heading ? s.heading.split(/\s+/).length : 0;
-      if (s.content) {
-        const text = typeof s.content === "string" ? s.content : JSON.stringify(s.content);
-        wordCount += text.split(/\s+/).length;
-      }
-    });
+    if ("sections" in item && Array.isArray(item.sections)) {
+      item.sections.forEach((s: BlogSection) => {
+        wordCount += s.heading ? s.heading.split(/\s+/).length : 0;
+        if (s.content) {
+          const text = typeof s.content === "string" ? s.content : JSON.stringify(s.content);
+          wordCount += text.split(/\s+/).length;
+        }
+      });
+    }
     const minutes = Math.max(1, Math.ceil(wordCount / 200));
     return `${minutes} min read`;
   };
 
-  const getFormattedDate = (item: any) => {
-    if (item.date) return item.date;
-    const dateStr = item.published_at || item.publishedAt || item.created_at;
+  const getFormattedDate = (item: BlogItem) => {
+    if ("date" in item && item.date) return item.date;
+    const dateStr =
+      ("published_at" in item && item.published_at) ||
+      ("publishedAt" in item && item.publishedAt) ||
+      ("created_at" in item && item.created_at);
     if (!dateStr) return "Aug 19, 2026";
     return new Date(dateStr).toLocaleDateString("en-US", {
       month: "short",
@@ -175,7 +195,7 @@ export default async function BlogPost({
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_65%_35%,#ffffff_0%,#edf6ff_50%,#dceaff_100%)]" />
           <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[28px] border border-[#a3b8e5] shadow-[0_20px_60px_rgba(59,100,160,0.12)]">
             <Image
-              src={formatS3Url(blog.image || blog.cover_image)}
+              src={formatS3Url(getImageSrc(blog))}
               alt={blog.title}
               width={1200}
               height={600}
@@ -194,9 +214,9 @@ export default async function BlogPost({
             {/* Article body */}
             <article className="rounded-[24px] border border-[#a3b8e5] bg-white p-8 shadow-[0_6px_30px_rgba(59,100,160,0.07)] md:p-12">
 
-              {blog.sections && blog.sections.length > 0 ? (
+              {"sections" in blog && blog.sections && blog.sections.length > 0 ? (
                 <div className="space-y-12">
-                  {blog.sections.map((sec: any) => (
+                  {blog.sections.map((sec: BlogSection) => (
                     <div key={sec.id || sec.slug} id={sec.slug} className="scroll-mt-24 space-y-4">
                       {sec.heading && (
                         <h2
@@ -270,10 +290,10 @@ export default async function BlogPost({
               <div className="mt-12 flex items-center justify-between border-t border-[#edf3ff] pt-8">
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#2563eb]">
-                    <img src="/icon.svg" alt="FF" className="h-6 w-6 brightness-0 invert" />
+                    <Image src="/icon.svg" alt="FF" width={24} height={24} className="brightness-0 invert" />
                   </div>
                   <div>
-                    <p className="text-[14px] font-semibold text-[#17243a]">{blog.author || "FlutterFlirt Team"}</p>
+                    <p className="text-[14px] font-semibold text-[#17243a]">{getAuthor(blog)}</p>
                     <p className="text-[12.5px] text-[#7184a0]">Consulting & Technology team</p>
                   </div>
                 </div>
@@ -287,9 +307,9 @@ export default async function BlogPost({
                 {/* Table of contents */}
                 <div className="rounded-[20px] border border-[#b8d8ca] bg-[#dcece7] p-6 shadow-[0_6px_24px_rgba(22,134,95,0.08)]">
                   <p className="text-[10.5px] font-bold uppercase tracking-[0.2em] text-[#16865f]">In this article</p>
-                  {blog.sections && blog.sections.length > 0 ? (
+                  {"sections" in blog && blog.sections && blog.sections.length > 0 ? (
                     <ul className="mt-4 space-y-3">
-                      {blog.sections.map((sec: any) => (
+                      {blog.sections.map((sec: BlogSection) => (
                         <li key={sec.id || sec.slug}>
                           <a href={`#${sec.slug}`} className="flex items-center gap-2 text-[13px] text-[#111827] transition-colors hover:text-[#16865f] cursor-pointer">
                             <span className="h-px w-4 bg-[#8fc5ae]" />
@@ -360,7 +380,7 @@ export default async function BlogPost({
                   >
                     <div className="relative h-[80px] w-[110px] flex-shrink-0 overflow-hidden rounded-[12px]">
                       <Image
-                        src={formatS3Url(post.image || post.cover_image)}
+                        src={formatS3Url(getImageSrc(post))}
                         alt={post.title}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
