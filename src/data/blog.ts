@@ -100,4 +100,24 @@ export const blogs = [
     readTime: "7 min read",
     image: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=1200&auto=format&fit=crop&q=80",
   },
+  {
+    slug: "autonomous-ai-agents-building-production-copilots-dynamics-365",
+    title: "Autonomous AI Agents in the Enterprise: Building Production Copilots with Dynamics 365 and Power Platform",
+    excerpt:
+      "How forward-thinking enterprises deploy multi-agent Copilot Studio workflows that automatically triage customer tickets, audit inventory anomalies, and trigger ERP ledger transactions.",
+    category: "AI & Power Platform",
+    date: "Nov 19, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=1200&auto=format&fit=crop&q=80",
+  },
+  {
+    slug: "headless-erp-architecture-subsecond-b2b-portals-nextjs-dynamics",
+    title: "Headless ERP Architecture: Crafting Sub-Second B2B Portals with Next.js and Dynamics 365",
+    excerpt:
+      "Why modern enterprises are decoupling customer-facing portals from legacy ERP screens—leveraging Next.js App Router, edge caching, and unified GraphQL APIs for unmatched customer experience.",
+    category: "Custom Development",
+    date: "Nov 19, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&auto=format&fit=crop&q=80",
+  },
 ];
