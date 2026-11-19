@@ -198,8 +198,8 @@ export default async function BlogPost({
               src={formatS3Url(getImageSrc(blog))}
               alt={blog.title}
               width={1200}
-              height={600}
-              className="h-[260px] w-full object-cover sm:h-[400px] md:h-[520px]"
+              height={675}
+              className="aspect-video w-full object-cover object-top"
               priority
             />
           </div>
