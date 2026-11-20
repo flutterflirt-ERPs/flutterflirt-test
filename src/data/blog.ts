@@ -120,4 +120,24 @@ export const blogs = [
     readTime: "6 min read",
     image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=1200&auto=format&fit=crop&q=80",
   },
+  {
+    slug: "predictive-maintenance-industrial-iot-dynamics-365-supply-chain",
+    title: "Predictive Maintenance in Action: Bridging Industrial IoT Telemetry with Dynamics 365 Supply Chain",
+    excerpt:
+      "Discover how manufacturing and logistics enterprises connect machine vibration, heat sensors, and Azure IoT Hub directly into Dynamics 365 to eliminate unplanned downtime.",
+    category: "Dynamics 365 & IoT",
+    date: "Nov 20, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=1200&auto=format&fit=crop&q=80",
+  },
+  {
+    slug: "accelerating-financial-close-automating-ledger-reconciliation-business-central",
+    title: "Accelerating the Financial Close: Automating Multi-Entity Ledger Reconciliation in Dynamics 365 Business Central",
+    excerpt:
+      "How modern finance leaders cut monthly close cycles from 12 days to 48 hours with automated bank feeds, AI invoice matching, and intercompany elimination ledgers.",
+    category: "Finance & ERP",
+    date: "Nov 20, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1200&auto=format&fit=crop&q=80",
+  },
 ];
