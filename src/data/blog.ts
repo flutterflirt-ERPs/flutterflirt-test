@@ -140,4 +140,24 @@ export const blogs = [
     readTime: "6 min read",
     image: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=1200&auto=format&fit=crop&q=80",
   },
+  {
+    slug: "scaling-engineering-velocity-dedicated-dynamics-cloud-pods",
+    title: "Scaling Engineering Velocity: Why Enterprise Leaders Choose Dedicated Dynamics & Cloud Pods",
+    excerpt:
+      "How forward-thinking enterprises eliminate agency overhead and hiring lag by deploying vetted, self-governing Dynamics 365, Azure, and React engineering pods.",
+    category: "Resource Augmentation",
+    date: "Nov 22, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1200&auto=format&fit=crop&q=80",
+  },
+  {
+    slug: "building-in-house-erp-independence-post-go-live-dynamics-mastery",
+    title: "Building In-House ERP Independence: The Enterprise Guide to Post-Go-Live Dynamics 365 Mastery",
+    excerpt:
+      "Why post-go-live success depends on internal enablement. How structured D365 Academy programs transform super-users into certified solution champions and cut long-term consulting dependencies.",
+    category: "D365 Academy",
+    date: "Nov 22, 2026",
+    readTime: "6 min read",
+    image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=1200&auto=format&fit=crop&q=80",
+  },
 ];
