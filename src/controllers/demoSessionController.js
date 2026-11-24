@@ -2,6 +2,7 @@ const { query } = require('../config/db');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const path = require('path');
 const { Pool } = require('pg');
 
 // Setup email transporter using existing SMTP config
@@ -53,6 +54,19 @@ const ensureDemoSessionsTable = async () => {
   // Add columns if table already exists
   await query(`ALTER TABLE demo_sessions ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0;`);
   await query(`ALTER TABLE demo_sessions ADD COLUMN IF NOT EXISTS activity_log JSONB DEFAULT '[]';`);
+
+  // Ensure OTP verification table exists
+  await query(`
+    CREATE TABLE IF NOT EXISTS demo_email_otps (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) NOT NULL,
+      otp_code VARCHAR(10) NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      verified BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_demo_email_otps_lookup ON demo_email_otps(email, otp_code, verified);
+  `);
 };
 
 // Normalize response row for consistent API contracts
@@ -68,7 +82,7 @@ const normalizeSession = (row) => {
       timeRemaining = 'Expired';
     }
   } else if (row.status === 'ready') {
-    timeRemaining = '48 hours (Starts on 1st login)';
+    timeRemaining = '6 hours (Starts on 1st login)';
   } else if (row.status === 'pending') {
     timeRemaining = 'Not started (Pending approval)';
   } else if (row.status === 'expired') {
@@ -184,14 +198,243 @@ const seedDefaultDemos = async () => {
   }
 };
 
-// 1. PUBLIC: Submit Demo Request & INSTANTLY SEND CREDENTIALS (No manual approval needed)
+// 0. PUBLIC: Send 6-Digit Email Verification Code to prevent dummy/fake emails
+const sendDemoOtp = async (req, res) => {
+  try {
+    await ensureDemoSessionsTable();
+    const { workEmail, fullName, productInterested } = req.body;
+
+    if (!workEmail || !workEmail.trim()) {
+      return res.status(400).json({ success: false, message: 'Work email is required.' });
+    }
+
+    const trimmedEmail = workEmail.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address format.' });
+    }
+
+    const appRequested = (productInterested || 'Dynamics 365 Finance & Operations').trim();
+
+    // Check if email already claimed demo for this product
+    const existingSession = await query(
+      `SELECT id, demo_id, status, expires_at, first_login_at 
+       FROM demo_sessions 
+       WHERE LOWER(work_email) = $1 
+         AND (LOWER(application) = LOWER($2) OR LOWER(application) LIKE LOWER($3))
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [trimmedEmail, appRequested, `%${appRequested}%`]
+    );
+
+    if (existingSession.rows.length > 0) {
+      const prior = existingSession.rows[0];
+      if (prior.status === 'active' || prior.status === 'ready') {
+        return res.status(409).json({
+          success: false,
+          code: 'DEMO_ALREADY_ACTIVE',
+          message: `A demo access for this email is already active (Demo ID: ${prior.demo_id}). Please check your inbox for login credentials.`
+        });
+      } else {
+        return res.status(403).json({
+          success: false,
+          code: 'DEMO_ALREADY_CLAIMED',
+          message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}).`
+        });
+      }
+    }
+
+    // Generate secure 6-digit numeric OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
+
+    // Invalidate previous OTPs for this email
+    await query(`DELETE FROM demo_email_otps WHERE LOWER(email) = $1`, [trimmedEmail]);
+
+    // Save new OTP
+    await query(
+      `INSERT INTO demo_email_otps (email, otp_code, expires_at, verified)
+       VALUES ($1, $2, $3, false)`,
+      [trimmedEmail, otp, expiresAt]
+    );
+
+    // Send email with verification code
+    if (process.env.SMTP_USER) {
+      try {
+        await transporter.sendMail({
+          from: process.env.SMTP_FROM || `"FlutterFlirt Support" <${process.env.SMTP_USER}>`,
+          to: trimmedEmail,
+          subject: `Your verification code is ${otp}`,
+          text: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes. If you did not request this, you can safely ignore this email.`,
+          headers: {
+            'X-Entity-Ref-ID': `${Date.now()}-${otp}`
+          },
+          html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="application/ld+json">
+  {
+    "@context": "http://schema.org",
+    "@type": "EmailMessage",
+    "description": "Your verification code is ${otp}"
+  }
+  </script>
+</head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1e293b;">
+  <!-- Gmail NLP Preheader -->
+  <div style="display:none;font-size:1px;color:#f1f5f9;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">
+    Your verification code is ${otp}. Use this code to verify your email.
+  </div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:24px;border:1px solid #e2e8f0;padding:40px 32px;box-shadow:0 8px 30px rgba(15,23,42,0.06);">
+          <tr>
+            <td align="center">
+              <!-- Header Icon -->
+              <table cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+                <tr>
+                  <td align="center">
+                    <div style="width:52px;height:52px;background:#eff6ff;border:1px solid #dbeafe;border-radius:16px;text-align:center;line-height:52px;font-size:24px;">
+                      ✉️
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;letter-spacing:-0.4px;">
+                Verify Your Email
+              </h2>
+              <p style="margin:0 0 24px;font-size:13px;color:#64748b;line-height:1.6;max-width:360px;">
+                Hi <strong>${fullName || 'there'}</strong>, your verification code is below:
+              </p>
+
+              <!-- Single clean double-clickable / one-click selectable code box -->
+              <div style="margin:0 auto 28px;text-align:center;">
+                <div style="display:inline-block;padding:14px 36px;background:#f8fafc;border:2px solid #cbd5e1;border-radius:16px;">
+                  <span style="font-family:-apple-system,BlinkMacSystemFont,'SF Mono',Consolas,monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:#0f172a;user-select:all;-webkit-user-select:all;-moz-user-select:all;display:inline-block;cursor:pointer;">
+                    ${otp}
+                  </span>
+                </div>
+              </div>
+
+              <div style="background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:8px 18px;margin-bottom:24px;display:inline-block;">
+                <span style="font-size:12px;color:#64748b;font-weight:500;">
+                  ⏱️ Code expires in <strong>10 minutes</strong>
+                </span>
+              </div>
+
+              <!-- Divider -->
+              <div style="border-top:1px solid #f1f5f9;margin-bottom:20px;"></div>
+
+              <p style="margin:0;font-size:11px;color:#94a3b8;line-height:1.5;">
+                If you did not request this demo, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin-top:20px;">
+          <tr>
+            <td align="center" style="font-size:11px;color:#94a3b8;">
+              © ${new Date().getFullYear()} FlutterFlirt Cloud Systems. All rights reserved.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+          `
+        });
+      } catch (mailErr) {
+        console.error('[OTP Mail Dispatch Error]:', mailErr.message);
+        return res.status(500).json({ success: false, message: 'Could not send verification email. Please check the address.' });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${trimmedEmail}.`
+    });
+  } catch (error) {
+    console.error('sendDemoOtp error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to dispatch verification code.' });
+  }
+};
+
+// 1. PUBLIC: Submit Demo Request & INSTANTLY SEND CREDENTIALS (Requires verified OTP)
 const submitDemoRequest = async (req, res) => {
   try {
     await ensureDemoSessionsTable();
-    const { fullName, workEmail, phoneNumber, companyName, companySize, productInterested, notes } = req.body;
+    const { fullName, workEmail, phoneNumber, companyName, companySize, productInterested, notes, otpCode } = req.body;
 
     if (!fullName || !workEmail || !companyName) {
       return res.status(400).json({ success: false, message: 'Full name, work email, and company name are required.' });
+    }
+
+    if (!otpCode || !otpCode.trim()) {
+      return res.status(400).json({ success: false, message: 'Verification code is required to confirm your email.' });
+    }
+
+    const trimmedEmail = workEmail.trim().toLowerCase();
+    const cleanOtp = otpCode.trim();
+
+    // Verify OTP
+    const otpRecord = await query(
+      `SELECT id, expires_at 
+       FROM demo_email_otps 
+       WHERE LOWER(email) = $1 AND otp_code = $2 AND verified = false
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [trimmedEmail, cleanOtp]
+    );
+
+    if (otpRecord.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code. Please check your email or request a new one.' });
+    }
+
+    if (new Date(otpRecord.rows[0].expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ success: false, message: 'Verification code has expired. Please request a new code.' });
+    }
+
+    // Mark OTP as verified
+    await query(`UPDATE demo_email_otps SET verified = true WHERE id = $1`, [otpRecord.rows[0].id]);
+
+    const appRequested = (productInterested || 'Dynamics 365 Finance & Operations').trim();
+
+    // STRICT CHECK: User cannot claim another demo from the same Email ID for this product
+    const existingSession = await query(
+      `SELECT id, demo_id, status, expires_at, first_login_at 
+       FROM demo_sessions 
+       WHERE LOWER(work_email) = $1 
+         AND (LOWER(application) = LOWER($2) OR LOWER(application) LIKE LOWER($3))
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [trimmedEmail, appRequested, `%${appRequested}%`]
+    );
+
+    if (existingSession.rows.length > 0) {
+      const prior = existingSession.rows[0];
+      if (prior.status === 'active' || prior.status === 'ready') {
+        return res.status(409).json({
+          success: false,
+          code: 'DEMO_ALREADY_ACTIVE',
+          message: `A demo access for this email is already active (Demo ID: ${prior.demo_id}). Please check your inbox for login credentials or sign in directly.`
+        });
+      } else {
+        return res.status(403).json({
+          success: false,
+          code: 'DEMO_ALREADY_CLAIMED',
+          message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}). Each email is eligible for exactly one trial. Contact us at info@flutterflirt.com for an extended pilot.`
+        });
+      }
     }
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -232,37 +475,74 @@ const submitDemoRequest = async (req, res) => {
           connectionTimeoutMillis: 5000,
         });
 
-        // Compute bcrypt hash (standard for apps like Stock Pilot / WMS)
+        // Compute bcrypt hash (standard for apps like Stock Pilot / WMS / CashPilot)
         const salt = await bcrypt.genSalt(10);
         const bcryptHash = await bcrypt.hash(plainPassword, salt);
 
-        // Check columns of 'users' table in target project DB
-        const usersTableInfo = await productDbPool.query(`
-          SELECT column_name, data_type 
-          FROM information_schema.columns 
-          WHERE table_schema='public' AND table_name='users'
+        // Introspect target database tables
+        const tablesRes = await productDbPool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public'
         `);
+        const targetTables = tablesRes.rows.map(r => r.table_name.toLowerCase());
 
-        if (usersTableInfo.rows.length > 0) {
+        let targetUserId = null;
+
+        // Check columns of 'users' table in target project DB
+        if (targetTables.includes('users')) {
+          const usersTableInfo = await productDbPool.query(`
+            SELECT column_name, data_type, udt_name 
+            FROM information_schema.columns 
+            WHERE table_schema='public' AND table_name='users'
+          `);
+
           const colNames = usersTableInfo.rows.map(r => r.column_name);
           const hasPasswordHash = colNames.includes('password_hash');
           const hasPassword = colNames.includes('password');
           const hasRole = colNames.includes('role');
           const hasActive = colNames.includes('active');
+          const hasPhone = colNames.includes('phone');
+          const hasLastOrgId = colNames.includes('last_org_id');
+          const hasLastCompanyId = colNames.includes('last_company_id');
 
           const pwCol = hasPasswordHash ? 'password_hash' : (hasPassword ? 'password' : null);
-          const pwVal = hasPasswordHash ? bcryptHash : plainPassword;
+          const pwVal = hasPasswordHash ? bcryptHash : (hasPassword ? bcryptHash : plainPassword);
+
+          // Detect role enum values for users table if role is an enum
+          let userRoleValue = 'ADMIN';
+          if (hasRole) {
+            try {
+              const enumRes = await productDbPool.query(`
+                SELECT e.enumlabel 
+                FROM pg_enum e 
+                JOIN pg_type t ON e.enumtypid = t.oid 
+                JOIN information_schema.columns c ON c.udt_name = t.typname 
+                WHERE c.table_name = 'users' AND c.column_name = 'role'
+              `);
+              const enumLabels = enumRes.rows.map(e => e.enumlabel.toUpperCase());
+              if (enumLabels.length > 0) {
+                if (enumLabels.includes('OWNER')) userRoleValue = 'OWNER';
+                else if (enumLabels.includes('ADMIN')) userRoleValue = 'ADMIN';
+                else if (enumLabels.includes('MANAGER')) userRoleValue = 'MANAGER';
+                else userRoleValue = enumLabels[0];
+              }
+            } catch (err) {
+              console.warn('[Role Enum Introspection Warning]:', err.message);
+            }
+          }
 
           // Check if user already exists
           const existing = await productDbPool.query(`SELECT id FROM users WHERE LOWER(email) = LOWER($1)`, [workEmail]);
 
           if (existing.rows.length > 0) {
+            targetUserId = existing.rows[0].id;
             // Update password so user can login with their fresh credentials
             if (pwCol) {
-              await productDbPool.query(`UPDATE users SET "${pwCol}" = $1, name = $2 WHERE id = $3`, [pwVal, fullName, existing.rows[0].id]);
+              await productDbPool.query(`UPDATE users SET "${pwCol}" = $1, name = $2 WHERE id = $3`, [pwVal, fullName, targetUserId]);
             }
           } else {
-            // Insert new user into users table with ADMIN role
+            // Insert new user into users table
             let insertCols = ['name', 'email'];
             let insertVals = [fullName, workEmail];
             let placeholders = ['$1', '$2'];
@@ -276,7 +556,7 @@ const submitDemoRequest = async (req, res) => {
 
             if (hasRole) {
               insertCols.push('role');
-              insertVals.push('ADMIN');
+              insertVals.push(userRoleValue);
               placeholders.push(`$${idx++}`);
             }
 
@@ -286,13 +566,128 @@ const submitDemoRequest = async (req, res) => {
               placeholders.push(`$${idx++}`);
             }
 
-            const insertSql = `INSERT INTO users (${insertCols.join(', ')}) VALUES (${placeholders.join(', ')})`;
-            await productDbPool.query(insertSql, insertVals);
+            if (hasPhone && phoneNumber) {
+              insertCols.push('phone');
+              insertVals.push(phoneNumber);
+              placeholders.push(`$${idx++}`);
+            }
+
+            const insertSql = `INSERT INTO users (${insertCols.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING id`;
+            const userInsertRes = await productDbPool.query(insertSql, insertVals);
+            targetUserId = userInsertRes.rows[0].id;
           }
-          console.log(`[Demo Provision] Successfully populated 'users' table in target project DB for ${workEmail}`);
+          console.log(`[Demo Provision] User record active (ID: ${targetUserId}) for ${workEmail}`);
+
+          // --- SMART MULTI-TENANCY ATTACHMENT (Organizations / Companies / Memberships) ---
+
+          // 1. Handle organizations (e.g. CashPilot)
+          if (targetTables.includes('organizations')) {
+            let orgId = null;
+            // Check if organization already exists with this name or for this user
+            const existingOrg = await productDbPool.query(`SELECT id FROM organizations LIMIT 1`);
+            if (existingOrg.rows.length > 0) {
+              orgId = existingOrg.rows[0].id;
+            } else {
+              const orgRes = await productDbPool.query(
+                `INSERT INTO organizations (name, business_type, currency) VALUES ($1, 'SERVICES', 'INR') RETURNING id`,
+                [companyName || 'My Business Enterprise']
+              );
+              orgId = orgRes.rows[0].id;
+            }
+
+            if (hasLastOrgId && targetUserId && orgId) {
+              await productDbPool.query(`UPDATE users SET last_org_id = $1 WHERE id = $2`, [orgId, targetUserId]);
+            }
+
+            // Ensure membership link
+            if (targetTables.includes('memberships') && targetUserId && orgId) {
+              const memColsRes = await productDbPool.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_schema='public' AND table_name='memberships'
+              `);
+              const memCols = memColsRes.rows.map(c => c.column_name.toLowerCase());
+              if (memCols.includes('org_id') && memCols.includes('user_id')) {
+                // Determine membership role (default 'OWNER')
+                let memRole = 'OWNER';
+                try {
+                  const rEnumRes = await productDbPool.query(`
+                    SELECT e.enumlabel FROM pg_enum e 
+                    JOIN pg_type t ON e.enumtypid = t.oid 
+                    JOIN information_schema.columns c ON c.udt_name = t.typname 
+                    WHERE c.table_name = 'memberships' AND c.column_name = 'role'
+                  `);
+                  const rLabels = rEnumRes.rows.map(e => e.enumlabel.toUpperCase());
+                  if (rLabels.length > 0) {
+                    if (rLabels.includes('OWNER')) memRole = 'OWNER';
+                    else if (rLabels.includes('ADMIN')) memRole = 'ADMIN';
+                    else memRole = rLabels[0];
+                  }
+                } catch (_) {}
+
+                await productDbPool.query(`
+                  INSERT INTO memberships (org_id, user_id, role) 
+                  VALUES ($1, $2, $3) 
+                  ON CONFLICT (org_id, user_id) DO UPDATE SET role = EXCLUDED.role
+                `, [orgId, targetUserId, memRole]);
+                console.log(`[Demo Provision] Created organization membership (Org: ${orgId}, User: ${targetUserId}, Role: ${memRole})`);
+              }
+            }
+          }
+
+          // 2. Handle companies (e.g. LedgerPilot)
+          if (targetTables.includes('companies')) {
+            let companyId = null;
+            const existingComp = await productDbPool.query(`SELECT id FROM companies LIMIT 1`);
+            if (existingComp.rows.length > 0) {
+              companyId = existingComp.rows[0].id;
+            } else {
+              const compRes = await productDbPool.query(
+                `INSERT INTO companies (name, currency) VALUES ($1, 'INR') RETURNING id`,
+                [companyName || 'My Global Company']
+              );
+              companyId = compRes.rows[0].id;
+            }
+
+            if (hasLastCompanyId && targetUserId && companyId) {
+              await productDbPool.query(`UPDATE users SET last_company_id = $1 WHERE id = $2`, [companyId, targetUserId]);
+            }
+
+            // Ensure company membership link
+            if (targetTables.includes('memberships') && targetUserId && companyId) {
+              const memColsRes = await productDbPool.query(`
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_schema='public' AND table_name='memberships'
+              `);
+              const memCols = memColsRes.rows.map(c => c.column_name.toLowerCase());
+              if (memCols.includes('company_id') && memCols.includes('user_id')) {
+                let compRole = 'OWNER';
+                try {
+                  const rEnumRes = await productDbPool.query(`
+                    SELECT e.enumlabel FROM pg_enum e 
+                    JOIN pg_type t ON e.enumtypid = t.oid 
+                    JOIN information_schema.columns c ON c.udt_name = t.typname 
+                    WHERE c.table_name = 'memberships' AND c.column_name = 'role'
+                  `);
+                  const rLabels = rEnumRes.rows.map(e => e.enumlabel.toUpperCase());
+                  if (rLabels.length > 0) {
+                    if (rLabels.includes('OWNER')) compRole = 'OWNER';
+                    else if (rLabels.includes('ADMIN')) compRole = 'ADMIN';
+                    else compRole = rLabels[0];
+                  }
+                } catch (_) {}
+
+                await productDbPool.query(`
+                  INSERT INTO memberships (company_id, user_id, role) 
+                  VALUES ($1, $2, $3) 
+                  ON CONFLICT (company_id, user_id) DO UPDATE SET role = EXCLUDED.role
+                `, [companyId, targetUserId, compRole]);
+                console.log(`[Demo Provision] Created company membership (Company: ${companyId}, User: ${targetUserId}, Role: ${compRole})`);
+              }
+            }
+          }
         }
 
-        // Also ensure demo_users backup table is kept updated
+        // Also ensure demo_users backup table is kept updated for fast audit
         await productDbPool.query(`
           CREATE TABLE IF NOT EXISTS demo_users (
             id SERIAL PRIMARY KEY,
@@ -479,12 +874,12 @@ style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow
     <tr>
       <td style="padding:17px;">
         <strong style="font-size:16px;color:#0755c9;">
-          48-Hour Demo Validity
+          6-Hour Demo Validity
         </strong>
         <p style="margin:7px 0 0;font-size:14px;line-height:1.6;color:#334155;">
-          Your 48 hours of uninterrupted evaluation start strictly
+          Your 6 hours of uninterrupted evaluation start strictly
           when you log in for the first time. Your access will
-          automatically expire after 48 hours.
+          automatically expire after 6 hours.
         </p>
       </td>
     </tr>
@@ -567,22 +962,73 @@ const getAllDemoSessions = async (req, res) => {
 
       for (const row of readySessions.rows) {
         try {
-          const pool = new Pool({ connectionString: row.demo_db_url, connectionTimeoutMillis: 3000 });
-          // Check if user has logged in: either recorded in demo_user_logins, or pg_stat_statements shows login query
-          const stat = await pool.query(
-            `SELECT calls FROM pg_stat_statements WHERE query ILIKE '%lower(email)=lower%' LIMIT 1`
-          );
-          if (stat.rows.length > 0 && parseInt(stat.rows[0].calls, 10) > 0) {
-            const now = new Date();
-            const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
-            const initialLog = [{ event: "First Successful Login via Product App", timestamp: now.toISOString(), client: row.application }];
+          const pool = new Pool({ connectionString: row.demo_db_url, connectionTimeoutMillis: 4000 });
+          
+          let hasLoggedIn = false;
+          let loginTimestamp = new Date();
+
+          // Check 1: User's last_login or audit_log or demo_user_logins
+          const targetTablesRes = await pool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema='public'`);
+          const targetTables = targetTablesRes.rows.map(t => t.table_name.toLowerCase());
+
+          // A. If target has audit_log (e.g. Cashpilot)
+          if (targetTables.includes('audit_log')) {
+            const auditCheck = await pool.query(`
+              SELECT a.created_at 
+              FROM audit_log a
+              JOIN users u ON a.user_id = u.id
+              WHERE LOWER(u.email) = LOWER($1)
+              ORDER BY a.created_at ASC
+              LIMIT 1
+            `, [row.work_email]);
+            if (auditCheck.rows.length > 0) {
+              hasLoggedIn = true;
+              loginTimestamp = new Date(auditCheck.rows[0].created_at);
+            }
+          }
+
+          // B. Check users table for last_login or updated_at after created_at
+          if (!hasLoggedIn && targetTables.includes('users')) {
+            const uColsRes = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`);
+            const uCols = uColsRes.rows.map(c => c.column_name.toLowerCase());
+            if (uCols.includes('last_login')) {
+              const uLogin = await pool.query(`SELECT last_login FROM users WHERE LOWER(email) = LOWER($1) AND last_login IS NOT NULL LIMIT 1`, [row.work_email]);
+              if (uLogin.rows.length > 0 && uLogin.rows[0].last_login) {
+                hasLoggedIn = true;
+                loginTimestamp = new Date(uLogin.rows[0].last_login);
+              }
+            } else if (uCols.includes('last_login_at')) {
+              const uLogin = await pool.query(`SELECT last_login_at FROM users WHERE LOWER(email) = LOWER($1) AND last_login_at IS NOT NULL LIMIT 1`, [row.work_email]);
+              if (uLogin.rows.length > 0 && uLogin.rows[0].last_login_at) {
+                hasLoggedIn = true;
+                loginTimestamp = new Date(uLogin.rows[0].last_login_at);
+              }
+            }
+          }
+
+          // C. Fallback: pg_stat_statements query tracker
+          if (!hasLoggedIn) {
+            try {
+              const stat = await pool.query(
+                `SELECT calls FROM pg_stat_statements WHERE query ILIKE '%lower(email)=lower%' LIMIT 1`
+              );
+              if (stat.rows.length > 0 && parseInt(stat.rows[0].calls, 10) > 0) {
+                hasLoggedIn = true;
+              }
+            } catch (_) {}
+          }
+
+          if (hasLoggedIn) {
+            const expiresAt = new Date(loginTimestamp.getTime() + 6 * 60 * 60 * 1000); // 6 hours demo timer
+            const initialLog = [{ event: "First Successful Login via Product App", timestamp: loginTimestamp.toISOString(), client: row.application }];
             await query(
               `UPDATE demo_sessions
                SET first_login_at = $1, expires_at = $2, last_login_at = $1, status = 'active', login_count = COALESCE(login_count, 0) + 1, activity_log = $3
                WHERE id = $4`,
-              [now, expiresAt, JSON.stringify(initialLog), row.id]
+              [loginTimestamp, expiresAt, JSON.stringify(initialLog), row.id]
             );
           }
+
           await pool.end();
         } catch (subErr) {
           // ignore individual db check error
@@ -694,7 +1140,7 @@ const approveDemoRequest = async (req, res) => {
                   </div>
 
                   <div class="timer-notice">
-                    <strong>⏳ 48-Hour Guarantee:</strong> Your 48 hours of evaluation begins strictly when you <strong>log in for the first time</strong>. No evaluation time has been consumed yet.
+                    <strong>⏳ 6-Hour Guarantee:</strong> Your 6 hours of evaluation begins strictly when you <strong>log in for the first time</strong>. No evaluation time has been consumed yet.
                   </div>
                 </div>
                 <div class="footer">
@@ -712,7 +1158,7 @@ const approveDemoRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Demo request approved! Status set to Ready. 48-hour timer will start when user logs in.',
+      message: 'Demo request approved! Status set to Ready. 6-hour timer will start when user logs in.',
       session: normalizeSession(updated.rows[0]),
     });
   } catch (error) {
@@ -754,15 +1200,15 @@ const gatewayAuthenticate = async (req, res) => {
       return res.status(403).json({ success: false, message: 'This demo session has been revoked by admin.' });
     }
     if (session.status === 'expired') {
-      return res.status(403).json({ success: false, message: 'Your 48-hour demo session has expired. Contact sales for an extension.' });
+      return res.status(403).json({ success: false, message: 'Your 6-hour demo session has expired. Contact sales for an extension.' });
     }
 
     const now = new Date();
 
     // FIRST LOGIN CHECK:
     if (!session.first_login_at) {
-      // Exactly 48 hours from NOW
-      const expiresAt = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      // Exactly 6 hours from NOW
+      const expiresAt = new Date(now.getTime() + 6 * 60 * 60 * 1000);
       const initialLog = [{ event: "First Successful Login", timestamp: now.toISOString(), ip: req.ip || "Direct Gateway" }];
 
       const activatedRes = await query(
@@ -779,7 +1225,7 @@ const gatewayAuthenticate = async (req, res) => {
           transporter.sendMail({
             from: process.env.SMTP_FROM || `"FlutterFlirt Cloud ERP" <${process.env.SMTP_USER}>`,
             to: session.work_email,
-            subject: `Demo Activated: 48-Hour Timer Started [${session.demo_id}]`,
+            subject: `Demo Activated: 6-Hour Timer Started [${session.demo_id}]`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; color: #1e293b; line-height: 1.6;">
                 <h2 style="color: #16a34a;">Demo Session Successfully Activated!</h2>
@@ -787,7 +1233,7 @@ const gatewayAuthenticate = async (req, res) => {
                 <p>You have successfully signed in to <strong>${session.application}</strong> for the first time.</p>
                 <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 8px; margin: 20px 0;">
                   <p style="margin: 0 0 6px;"><strong>First Login Time:</strong> ${now.toUTCString()}</p>
-                  <p style="margin: 0 0 6px;"><strong>Valid Until:</strong> ${expiresAt.toUTCString()} (Exactly 48 Hours)</p>
+                  <p style="margin: 0 0 6px;"><strong>Valid Until:</strong> ${expiresAt.toUTCString()} (Exactly 6 Hours)</p>
                   <p style="margin: 0;"><strong>Active Demo ID:</strong> ${session.demo_id}</p>
                 </div>
                 <p>Enjoy exploring all enterprise capabilities. Our technical architecture team is on standby should you have any questions.</p>
@@ -801,7 +1247,7 @@ const gatewayAuthenticate = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: 'Welcome! Your 48-hour demo access has been activated.',
+        message: 'Welcome! Your 6-hour demo access has been activated.',
         isFirstLogin: true,
         session: normalizeSession(activatedRes.rows[0]),
       });
@@ -809,7 +1255,7 @@ const gatewayAuthenticate = async (req, res) => {
       // SUBSEQUENT LOGIN: Check if expired
       if (new Date(session.expires_at) <= now) {
         await query(`UPDATE demo_sessions SET status = 'expired' WHERE id = $1`, [session.id]);
-        return res.status(403).json({ success: false, message: 'Your 48-hour demo session has expired.' });
+        return res.status(403).json({ success: false, message: 'Your 6-hour demo session has expired.' });
       }
 
       // Record subsequent login timestamp WITHOUT restarting or modifying expires_at
@@ -851,7 +1297,7 @@ const extendDemoExpiry = async (req, res) => {
 
     const session = sessionRes.rows[0];
     const addMs = (parseInt(additionalHours, 10) || 24) * 60 * 60 * 1000;
-    
+
     // Base extension from current expires_at if in the future, or from now if already expired
     const baseTime = session.expires_at && new Date(session.expires_at) > new Date()
       ? new Date(session.expires_at)
@@ -941,21 +1387,53 @@ const checkAndExpireSessions = async () => {
             console.warn(`[Expiry Scheduler] Error cleaning project demo DB for ${row.work_email}:`, cleanErr.message);
           }
         }
-        
-        // 3. Notify user their 48 hours have ended
+
+        // 3. Notify user their 6 hours have ended
         if (process.env.SMTP_USER) {
           try {
             transporter.sendMail({
-              from: process.env.SMTP_FROM || `"FlutterFlirt Cloud ERP" <${process.env.SMTP_USER}>`,
+              from: process.env.SMTP_FROM || `"FlutterFlirt Enterprise" <${process.env.SMTP_USER}>`,
               to: row.work_email,
-              subject: `Your 48-Hour Demo Access Has Concluded [${row.demo_id}]`,
+              subject: `Your 6-Hour Demo Access Has Concluded [${row.demo_id}]`,
               html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; color: #1e293b; line-height: 1.6;">
-                  <h2 style="color: #e11d48;">Demo Session Concluded</h2>
-                  <p>Hello <strong>${row.customer_name}</strong>,</p>
-                  <p>Your 48-hour evaluation access for <strong>${row.application}</strong> has expired, and your temporary credentials have been automatically decommissioned.</p>
-                  <p>We hope the hands-on experience helped showcase how FlutterFlirt automates enterprise operations.</p>
-                  <p>To request a tailored full rollout or discuss an extension, please contact us at <a href="mailto:info@flutterflirt.com">info@flutterflirt.com</a>.</p>
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b; line-height: 1.6; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; background-color: #ffffff;">
+                  <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 20px; margin-bottom: 24px;">
+                    <span style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #059669; background: #ecfdf5; padding: 4px 10px; border-radius: 20px;">
+                      Demo Concluded
+                    </span>
+                    <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px; font-size: 22px;">
+                      Thank you for evaluating ${row.application}
+                    </h2>
+                  </div>
+
+                  <p style="margin: 0 0 16px; font-size: 15px;">Hello <strong>${row.customer_name}</strong>,</p>
+                  
+                  <p style="margin: 0 0 16px; font-size: 14.5px; color: #475569;">
+                    Your 6-hour hands-on evaluation access for <strong>${row.application}</strong> has concluded, and your temporary credentials have been automatically decommissioned.
+                  </p>
+
+                  <p style="margin: 0 0 24px; font-size: 14.5px; color: #475569;">
+                    We hope you experienced how effortlessly the platform streamlines your workflow and enterprise operations.
+                  </p>
+
+                  <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 8px; font-size: 15px; color: #0f172a;">Ready to purchase or deploy for your business?</h3>
+                    <p style="margin: 0 0 16px; font-size: 13.5px; color: #64748b;">
+                      Get in touch with our product team to purchase a commercial license, discuss dedicated custom deployment, or request pricing tailored to your organization.
+                    </p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                      <a href="mailto:info@flutterflirt.com?subject=Purchase Inquiry for ${encodeURIComponent(row.application)}" style="display: inline-block; background-color: #0f172a; color: #ffffff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;">
+                        Purchase Inquiry (Email Us)
+                      </a>
+                      <a href="tel:+918926104326" style="display: inline-block; background-color: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;">
+                        Call: +91 8926 104 326
+                      </a>
+                    </div>
+                  </div>
+
+                  <p style="margin: 0; font-size: 13px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+                    FlutterFlirt Technologies &bull; Direct Support: <a href="mailto:info@flutterflirt.com" style="color: #059669; text-decoration: none;">info@flutterflirt.com</a> | Call: <a href="tel:+918926104326" style="color: #059669; text-decoration: none;">+91 8926 104 326</a>
+                  </p>
                 </div>
               `,
             }).catch(e => console.warn('Expiry mail failed:', e.message));
@@ -972,6 +1450,7 @@ const checkAndExpireSessions = async () => {
 
 module.exports = {
   ensureDemoSessionsTable,
+  sendDemoOtp,
   submitDemoRequest,
   getAllDemoSessions,
   approveDemoRequest,

@@ -1,4 +1,5 @@
 const { query } = require('../config/db');
+const { Pool } = require('pg');
 
 const normalizeProduct = (row) => ({
   id: row.id,
@@ -224,6 +225,109 @@ const deleteProduct = async (req, res) => {
   }
 };
 
+// Admin endpoint: Test connection to PostgreSQL / Neon Demo DB URL & auto-persist
+const testDbConnection = async (req, res) => {
+  const { demoDbUrl, productId } = req.body;
+  if (!demoDbUrl || !demoDbUrl.trim()) {
+    return res.status(400).json({
+      connected: false,
+      message: 'Demo database URL is empty',
+    });
+  }
+
+  const cleanUrl = demoDbUrl.trim();
+  if (!cleanUrl.startsWith('postgresql://') && !cleanUrl.startsWith('postgres://')) {
+    return res.status(400).json({
+      connected: false,
+      message: 'Invalid protocol. URL must start with postgresql:// or postgres://',
+    });
+  }
+
+  const startTime = Date.now();
+  const testPool = new Pool({
+    connectionString: cleanUrl,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 6000,
+  });
+
+  try {
+    const pingRes = await testPool.query('SELECT current_database() as db, version() as ver, NOW() as server_time');
+    const latency = Date.now() - startTime;
+    const dbName = pingRes.rows[0]?.db || 'database';
+    const rawVer = pingRes.rows[0]?.ver || '';
+    const verShort = rawVer.split(' ')[0] + ' ' + (rawVer.split(' ')[1] || '');
+
+    // If connected and productId is provided, auto-save to saas_products immediately
+    if (productId) {
+      await query(
+        `UPDATE saas_products SET demo_db_url = $1, updated_at = NOW() WHERE id = $2`,
+        [cleanUrl, productId]
+      );
+      console.log(`[DB Test] Successfully verified & auto-saved demo_db_url for product ${productId}`);
+    }
+
+    return res.status(200).json({
+      connected: true,
+      database: dbName,
+      version: verShort,
+      latencyMs: latency,
+      message: `Connected ${productId ? '& saved ' : ''}successfully to "${dbName}" (${verShort}, ${latency}ms latency)`,
+    });
+  } catch (err) {
+    let reason = err.message;
+    if (err.code === '28P01') reason = 'Authentication failed: Invalid username or password';
+    else if (err.code === '3D000') reason = 'Database does not exist on target host';
+    else if (err.code === 'ENOTFOUND') reason = 'Database host address not found (DNS failed)';
+    else if (err.code === 'ECONNREFUSED') reason = 'Connection refused by server on port';
+    else if (err.code === 'ETIMEDOUT') reason = 'Connection timed out: Neon compute might be inactive or network unreachable';
+
+    return res.status(200).json({
+      connected: false,
+      error: reason,
+      message: `Connection failed: ${reason}`,
+    });
+  } finally {
+    try {
+      await testPool.end();
+    } catch (_) {}
+  }
+};
+
+// Admin endpoint: Batch verify database connectivity for list of products
+const batchVerifyDbStatus = async (req, res) => {
+  try {
+    await ensureProductsTable();
+    const result = await query(
+      `SELECT id, demo_db_url FROM saas_products WHERE demo_db_url IS NOT NULL AND demo_db_url != ''`
+    );
+
+    const statuses = {};
+    await Promise.all(
+      result.rows.map(async (row) => {
+        const testPool = new Pool({
+          connectionString: row.demo_db_url,
+          ssl: { rejectUnauthorized: false },
+          connectionTimeoutMillis: 4000,
+        });
+        try {
+          await testPool.query('SELECT 1');
+          statuses[row.id] = { connected: true };
+        } catch (e) {
+          statuses[row.id] = { connected: false, error: e.message };
+        } finally {
+          try {
+            await testPool.end();
+          } catch (_) {}
+        }
+      })
+    );
+
+    return res.status(200).json({ statuses });
+  } catch (err) {
+    return res.status(500).json({ message: 'Failed to verify statuses', error: err.message });
+  }
+};
+
 module.exports = {
   ensureProductsTable,
   getPublicProducts,
@@ -231,4 +335,6 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  testDbConnection,
+  batchVerifyDbStatus,
 };
