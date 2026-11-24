@@ -129,37 +129,9 @@ function SimpleProductCard({
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const FALLBACK_PRODUCTS: Product[] = [
-  {
-    id: "e622a234-bb58-4d82-94b3-e6abedeea95c",
-    category: "erp",
-    title: "StockPilot WMS",
-    badge: "Warehouse & Logistics ERP",
-    tagline: "Intelligent multi-warehouse inventory control, dispatch automation, and real-time stock telemetry.",
-    description: "An agile, multi-tenant warehouse management and enterprise logistics suite designed for high-throughput supply chains. Seamlessly orchestrates multi-bin lot tracking, automated picking & dispatch manifests, barcode scanner telemetry, and purchase order reconciliation with live database audit trails.",
-    demoUrl: "https://demostock-pilot-wms.vercel.app",
-    demoDbUrl: "postgresql://neondb_owner:npg_uSie1l3pHbQv@ep-misty-wildflower-a129azf7-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    accentColor: "#46b969",
-    icon: Database,
-    keyFeatures: [
-      "Multi-Location Lot, Batch & Serial Tracking",
-      "Automated Inbound Receiving & Barcode Dispatch Manifests",
-      "Live Database Sync & Automated Stock Level Threshold Alerts",
-      "Pick-Pack-Ship Optimization with Real-Time Bin Routing",
-      "Role-Based Access Control & Strict Transaction Audits"
-    ],
-    metrics: [
-      { label: "Inventory Accuracy", value: "99.9%" },
-      { label: "Dispatch Velocity", value: "2.4x" },
-      { label: "Stockout Reduction", value: "-65%" }
-    ],
-    previewTags: ["WMS", "Logistics", "Inventory ERP", "Supply Chain"]
-  }
-];
-
 export default function OurProductContent() {
   const [activeTab, setActiveTab] = useState<"all" | "erp" | "crm">("all");
-  const [productList, setProductList] = useState<Product[]>(FALLBACK_PRODUCTS);
+  const [productList, setProductList] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [detailsProduct, setDetailsProduct] = useState<Product | null>(null);
@@ -203,17 +175,17 @@ export default function OurProductContent() {
         const prodRes = await fetch(`${API_URL}/api/products`);
         if (prodRes.ok) {
           const data = await prodRes.json();
-          if (Array.isArray(data.products) && data.products.length > 0) {
+          if (Array.isArray(data.products)) {
             setProductList(data.products);
           } else {
-            setProductList(FALLBACK_PRODUCTS);
+            setProductList([]);
           }
         } else {
-          setProductList(FALLBACK_PRODUCTS);
+          setProductList([]);
         }
       } catch (err) {
-        console.warn("Using fallback data", err);
-        setProductList(FALLBACK_PRODUCTS);
+        console.error("Failed to load products from API:", err);
+        setProductList([]);
       } finally {
         setLoadingProducts(false);
       }
