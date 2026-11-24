@@ -107,7 +107,7 @@ export default function Navbar() {
       <div className="relative w-full flex justify-center">
 
         {/* ════════════════════════════════════════
-            DESKTOP NAV  (md and above)
+            DESKTOP NAV  (lg and above)
         ════════════════════════════════════════ */}
         <motion.nav
           aria-label="Main navigation"
@@ -142,9 +142,9 @@ export default function Navbar() {
               }
           }
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          /* Hidden entirely on mobile — replaced by the mobile bar below */
+          /* Hidden entirely on tablet & mobile (< 1024px) — replaced by the mobile/tablet bar below */
           className="
-            hidden md:flex
+            hidden lg:flex
             max-w-[1600px]
             w-full
             items-center
@@ -249,7 +249,7 @@ export default function Navbar() {
         </motion.nav>
 
         {/* ════════════════════════════════════════
-            MOBILE NAV  (below md)
+            MOBILE & TABLET NAV  (below lg)
         ════════════════════════════════════════ */}
         <motion.div
           initial={false}
@@ -282,7 +282,7 @@ export default function Navbar() {
           }
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           className="
-            flex md:hidden
+            flex lg:hidden
             w-full
             items-center
             justify-between
