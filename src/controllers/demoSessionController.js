@@ -67,6 +67,25 @@ const ensureDemoSessionsTable = async () => {
     );
     CREATE INDEX IF NOT EXISTS idx_demo_email_otps_lookup ON demo_email_otps(email, otp_code, verified);
   `);
+
+  // Permanent Demo Claims History Table (prevents claiming same product demo again even if user/session deleted)
+  await query(`
+    CREATE TABLE IF NOT EXISTS demo_claims_history (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      work_email VARCHAR(255) NOT NULL,
+      product_normalized VARCHAR(100) NOT NULL,
+      application_title VARCHAR(255) NOT NULL,
+      demo_id VARCHAR(50),
+      claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_demo_claims_hist_lookup ON demo_claims_history(work_email, product_normalized);
+  `);
+};
+
+// Helper: Normalize product title (strip spaces and non-alphanumeric chars)
+const normalizeProductKey = (name) => {
+  if (!name) return '';
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 };
 
 // Normalize response row for consistent API contracts
@@ -215,16 +234,31 @@ const sendDemoOtp = async (req, res) => {
     }
 
     const appRequested = (productInterested || 'Dynamics 365 Finance & Operations').trim();
+    const normalizedApp = normalizeProductKey(appRequested);
 
-    // Check if email already claimed demo for this product
+    // 1. Check permanent claim history first
+    const claimHistory = await query(
+      `SELECT id, demo_id, claimed_at, application_title 
+       FROM demo_claims_history 
+       WHERE LOWER(work_email) = $1 AND product_normalized = $2 
+       LIMIT 1`,
+      [trimmedEmail, normalizedApp]
+    );
+
+    // 2. Check existing session in demo_sessions
     const existingSession = await query(
-      `SELECT id, demo_id, status, expires_at, first_login_at 
+      `SELECT id, demo_id, status, expires_at, first_login_at, application 
        FROM demo_sessions 
        WHERE LOWER(work_email) = $1 
-         AND (LOWER(application) = LOWER($2) OR LOWER(application) LIKE LOWER($3))
+         AND (
+           REGEXP_REPLACE(LOWER(application), '[^a-z0-9]', '', 'g') = $2
+           OR LOWER(application) = LOWER($3)
+           OR LOWER(application) LIKE LOWER($4)
+           OR LOWER($3) LIKE LOWER('%' || application || '%')
+         )
        ORDER BY created_at DESC 
        LIMIT 1`,
-      [trimmedEmail, appRequested, `%${appRequested}%`]
+      [trimmedEmail, normalizedApp, appRequested, `%${appRequested}%`]
     );
 
     if (existingSession.rows.length > 0) {
@@ -239,9 +273,17 @@ const sendDemoOtp = async (req, res) => {
         return res.status(403).json({
           success: false,
           code: 'DEMO_ALREADY_CLAIMED',
-          message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}).`
+          message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}). Each email is eligible for exactly one trial.`
         });
       }
+    }
+
+    if (claimHistory.rows.length > 0) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_ALREADY_CLAIMED',
+        message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}). Each email is eligible for exactly one trial. Contact us at info@flutterflirt.com for an extended pilot.`
+      });
     }
 
     // Generate secure 6-digit numeric OTP
@@ -408,16 +450,31 @@ const submitDemoRequest = async (req, res) => {
     await query(`UPDATE demo_email_otps SET verified = true WHERE id = $1`, [otpRecord.rows[0].id]);
 
     const appRequested = (productInterested || 'Dynamics 365 Finance & Operations').trim();
+    const normalizedApp = normalizeProductKey(appRequested);
 
-    // STRICT CHECK: User cannot claim another demo from the same Email ID for this product
+    // 1. Check permanent claim history first
+    const claimHistory = await query(
+      `SELECT id, demo_id, claimed_at, application_title 
+       FROM demo_claims_history 
+       WHERE LOWER(work_email) = $1 AND product_normalized = $2 
+       LIMIT 1`,
+      [trimmedEmail, normalizedApp]
+    );
+
+    // 2. STRICT CHECK: User cannot claim another demo from the same Email ID for this product
     const existingSession = await query(
-      `SELECT id, demo_id, status, expires_at, first_login_at 
+      `SELECT id, demo_id, status, expires_at, first_login_at, application 
        FROM demo_sessions 
        WHERE LOWER(work_email) = $1 
-         AND (LOWER(application) = LOWER($2) OR LOWER(application) LIKE LOWER($3))
+         AND (
+           REGEXP_REPLACE(LOWER(application), '[^a-z0-9]', '', 'g') = $2
+           OR LOWER(application) = LOWER($3)
+           OR LOWER(application) LIKE LOWER($4)
+           OR LOWER($3) LIKE LOWER('%' || application || '%')
+         )
        ORDER BY created_at DESC 
        LIMIT 1`,
-      [trimmedEmail, appRequested, `%${appRequested}%`]
+      [trimmedEmail, normalizedApp, appRequested, `%${appRequested}%`]
     );
 
     if (existingSession.rows.length > 0) {
@@ -435,6 +492,14 @@ const submitDemoRequest = async (req, res) => {
           message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}). Each email is eligible for exactly one trial. Contact us at info@flutterflirt.com for an extended pilot.`
         });
       }
+    }
+
+    if (claimHistory.rows.length > 0) {
+      return res.status(403).json({
+        success: false,
+        code: 'DEMO_ALREADY_CLAIMED',
+        message: `You have already claimed your 6-hour demo access for this application with this email (${trimmedEmail}). Each email is eligible for exactly one trial. Contact us at info@flutterflirt.com for an extended pilot.`
+      });
     }
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -742,6 +807,17 @@ const submitDemoRequest = async (req, res) => {
 
     const session = result.rows[0];
 
+    // Permanently record in demo_claims_history so user cannot reclaim demo even if session is deleted
+    try {
+      await query(
+        `INSERT INTO demo_claims_history (work_email, product_normalized, application_title, demo_id, claimed_at)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [trimmedEmail, normalizedApp, productInterested || 'Dynamics 365 Finance & Operations', demoId, now]
+      );
+    } catch (claimErr) {
+      console.warn('Failed to record demo claim history:', claimErr.message);
+    }
+
     // INSTANT EMAIL DISPATCH TO USER WITH ACCURATE DEMO URL & CREDENTIALS
     if (process.env.SMTP_USER) {
       try {
@@ -956,7 +1032,11 @@ const getAllDemoSessions = async (req, res) => {
       const readySessions = await query(
         `SELECT ds.id, ds.work_email, ds.application, p.demo_db_url 
          FROM demo_sessions ds
-         LEFT JOIN saas_products p ON (LOWER(p.title) = LOWER(ds.application) OR LOWER(p.title) LIKE LOWER('%' || ds.application || '%'))
+         LEFT JOIN saas_products p ON (
+           REGEXP_REPLACE(LOWER(p.title), '\\s+', '', 'g') = REGEXP_REPLACE(LOWER(ds.application), '\\s+', '', 'g')
+           OR LOWER(p.title) LIKE LOWER('%' || ds.application || '%')
+           OR LOWER(ds.application) LIKE LOWER('%' || p.title || '%')
+         )
          WHERE ds.status = 'ready' AND ds.first_login_at IS NULL AND p.demo_db_url IS NOT NULL AND p.demo_db_url != ''`
       );
 
@@ -987,30 +1067,64 @@ const getAllDemoSessions = async (req, res) => {
             }
           }
 
-          // B. Check users table for last_login or updated_at after created_at
+          // B. Check users table for last_login / last_login_at / login_count
           if (!hasLoggedIn && targetTables.includes('users')) {
             const uColsRes = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='users'`);
             const uCols = uColsRes.rows.map(c => c.column_name.toLowerCase());
+            
             if (uCols.includes('last_login')) {
               const uLogin = await pool.query(`SELECT last_login FROM users WHERE LOWER(email) = LOWER($1) AND last_login IS NOT NULL LIMIT 1`, [row.work_email]);
               if (uLogin.rows.length > 0 && uLogin.rows[0].last_login) {
                 hasLoggedIn = true;
                 loginTimestamp = new Date(uLogin.rows[0].last_login);
               }
-            } else if (uCols.includes('last_login_at')) {
+            }
+            if (!hasLoggedIn && uCols.includes('last_login_at')) {
               const uLogin = await pool.query(`SELECT last_login_at FROM users WHERE LOWER(email) = LOWER($1) AND last_login_at IS NOT NULL LIMIT 1`, [row.work_email]);
               if (uLogin.rows.length > 0 && uLogin.rows[0].last_login_at) {
                 hasLoggedIn = true;
                 loginTimestamp = new Date(uLogin.rows[0].last_login_at);
               }
             }
+            if (!hasLoggedIn && uCols.includes('login_count')) {
+              const uLogin = await pool.query(`SELECT login_count FROM users WHERE LOWER(email) = LOWER($1) AND login_count > 0 LIMIT 1`, [row.work_email]);
+              if (uLogin.rows.length > 0 && parseInt(uLogin.rows[0].login_count, 10) > 0) {
+                hasLoggedIn = true;
+              }
+            }
           }
 
-          // C. Fallback: pg_stat_statements query tracker
+          // C. Check demo_users table if present
+          if (!hasLoggedIn && targetTables.includes('demo_users')) {
+            const dColsRes = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='demo_users'`);
+            const dCols = dColsRes.rows.map(c => c.column_name.toLowerCase());
+            if (dCols.includes('first_login_at') || dCols.includes('last_login_at') || dCols.includes('login_count')) {
+              const dUser = await pool.query(
+                `SELECT first_login_at, last_login_at, login_count FROM demo_users WHERE LOWER(email) = LOWER($1) LIMIT 1`,
+                [row.work_email]
+              );
+              if (dUser.rows.length > 0) {
+                const u = dUser.rows[0];
+                if (u.first_login_at || u.last_login_at || (u.login_count && parseInt(u.login_count, 10) > 0)) {
+                  hasLoggedIn = true;
+                  loginTimestamp = new Date(u.first_login_at || u.last_login_at || Date.now());
+                }
+              }
+            }
+          }
+
+          // D. Fallback: pg_stat_statements query tracker (covers ChainPilot, LedgerPilot, etc.)
           if (!hasLoggedIn) {
             try {
               const stat = await pool.query(
-                `SELECT calls FROM pg_stat_statements WHERE query ILIKE '%lower(email)=lower%' LIMIT 1`
+                `SELECT calls FROM pg_stat_statements 
+                 WHERE (
+                   query ~* 'from\\s+users\\s+where.*email' 
+                   OR query ~* 'lower\\(email\\)' 
+                   OR query ILIKE '%users%email%'
+                 ) 
+                 AND calls > 0 
+                 LIMIT 1`
               );
               if (stat.rows.length > 0 && parseInt(stat.rows[0].calls, 10) > 0) {
                 hasLoggedIn = true;
@@ -1345,7 +1459,11 @@ const checkAndExpireSessions = async () => {
     const expiredCandidates = await query(
       `SELECT ds.*, p.demo_db_url 
        FROM demo_sessions ds
-       LEFT JOIN saas_products p ON (LOWER(p.title) = LOWER(ds.application) OR LOWER(p.title) LIKE LOWER('%' || ds.application || '%'))
+       LEFT JOIN saas_products p ON (
+         REGEXP_REPLACE(LOWER(p.title), '\\s+', '', 'g') = REGEXP_REPLACE(LOWER(ds.application), '\\s+', '', 'g')
+         OR LOWER(p.title) LIKE LOWER('%' || ds.application || '%')
+         OR LOWER(ds.application) LIKE LOWER('%' || p.title || '%')
+       )
        WHERE ds.status = 'active' AND ds.expires_at IS NOT NULL AND ds.expires_at <= $1`,
       [now]
     );
