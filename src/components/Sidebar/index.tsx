@@ -103,9 +103,9 @@ export function AppSidebar() {
                 <button
                     onClick={toggleSidebar}
                     aria-label="Open Sidebar"
-                    className="fixed left-4 top-5 z-40 flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#2563eb] shadow-lg shadow-blue-500/10 border border-[#cbe0fb] hover:bg-[#eff6ff] hover:scale-105 active:scale-95 transition-all duration-200"
+                    className="fixed left-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#2563eb] shadow-md border border-[#cbe0fb] hover:bg-[#eff6ff] hover:scale-105 active:scale-95 transition-all duration-200"
                 >
-                    <PanelLeftOpen className="h-5 w-5" />
+                    <PanelLeftOpen className="h-4 w-4" />
                 </button>
             )}
 

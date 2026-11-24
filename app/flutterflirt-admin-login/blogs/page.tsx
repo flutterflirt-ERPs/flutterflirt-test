@@ -470,11 +470,11 @@ export default function BlogsPage() {
           loading={isDeletingBlog}
         />
 
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-6">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-6 pl-14 sm:pl-16 md:pl-8">
           {/* Compact Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#cbdff8]/70 pb-4 mb-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb]">
                 <FileText className="h-5 w-5" />
               </div>
               <div>
@@ -616,23 +616,23 @@ export default function BlogsPage() {
                       return (
                         <>
                           {viewMode === "card" ? (
-                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-in fade-in duration-200">
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 animate-in fade-in duration-200">
                               {paginated.map((blog) => (
                                 <div
                                   key={blog.id}
                                   className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#cbe0fb] bg-white shadow-sm transition hover:shadow-md hover:border-[#9cb9df]"
                                 >
-                                  <div className="h-32 bg-[#eaf2fd] overflow-hidden relative">
+                                  <div className="h-36 bg-[#eaf2fd] overflow-hidden relative">
                                     {blog.cover_image && (
                                       <img
                                         src={blog.cover_image}
                                         alt={blog.title}
-                                        className="h-full w-full object-cover"
+                                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                                       />
                                     )}
                                     <div className="absolute top-3 left-3 flex gap-2">
                                       <span
-                                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${blog.status === "published"
+                                        className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-xs ${blog.status === "published"
                                           ? "bg-[#dcfce7] text-[#15803d]"
                                           : "bg-[#fef3c7] text-[#b45309]"
                                           }`}
@@ -657,18 +657,19 @@ export default function BlogsPage() {
 
                                     <div className="mt-5 border-t border-[#f0f4fb] pt-4">
                                       <div className="flex items-center justify-between text-xs text-[#718dae]">
-                                        <span>{blog.sections?.length || 0} sections</span>
+                                        <span className="font-medium">{blog.sections?.length || 0} sections</span>
                                         <span>
                                           {blog.published_at || blog.publishedAt
                                             ? new Date(blog.published_at || blog.publishedAt!).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                                             : "Draft"}
                                         </span>
                                       </div>
-                                      <div className="mt-4 flex items-center justify-end gap-2">
+                                      {/* Consistent, Touch-Friendly Action Buttons */}
+                                      <div className="mt-3.5 flex items-center justify-end gap-2">
                                         <Link
                                           href={`/blog/${blog.slug}`}
                                           target="_blank"
-                                          className="rounded-lg p-2 text-[#2563eb] transition hover:bg-[#e4efff]"
+                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#cbe0fb] bg-white text-[#2563eb] shadow-2xs transition hover:bg-[#edf5ff] hover:border-blue-400 active:scale-95"
                                           title="View Public Page"
                                         >
                                           <ExternalLink className="h-4 w-4" />
@@ -676,7 +677,7 @@ export default function BlogsPage() {
                                         <button
                                           type="button"
                                           onClick={() => handleStartEdit(blog)}
-                                          className="rounded-lg p-2 text-[#3b577a] transition hover:bg-[#e4efff] hover:text-[#1d4ed8]"
+                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#cbe0fb] bg-white text-[#3b577a] shadow-2xs transition hover:bg-[#edf5ff] hover:text-[#1d4ed8] hover:border-blue-400 active:scale-95 cursor-pointer"
                                           title="Edit Blog"
                                         >
                                           <Edit className="h-4 w-4" />
@@ -684,7 +685,7 @@ export default function BlogsPage() {
                                         <button
                                           type="button"
                                           onClick={() => handleDelete(blog.id)}
-                                          className="rounded-lg p-2 text-[#dc2626] transition hover:bg-[#fee2e2]"
+                                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-white text-[#dc2626] shadow-2xs transition hover:bg-[#fee2e2] hover:border-rose-300 active:scale-95 cursor-pointer"
                                           title="Delete Blog"
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -759,30 +760,30 @@ export default function BlogsPage() {
                                           : "Draft"}
                                       </td>
                                       <td className="py-3.5 px-5 text-right">
-                                        <div className="inline-flex items-center gap-1">
+                                        <div className="inline-flex items-center gap-1.5">
                                           <Link
                                             href={`/blog/${blog.slug}`}
                                             target="_blank"
-                                            className="rounded-lg p-1.5 text-[#2563eb] hover:bg-[#edf5ff] transition"
+                                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#cbe0fb] bg-white text-[#2563eb] shadow-2xs hover:bg-[#edf5ff] hover:border-blue-400 transition"
                                             title="View Public Page"
                                           >
-                                            <ExternalLink className="h-4 w-4" />
+                                            <ExternalLink className="h-3.5 w-3.5" />
                                           </Link>
                                           <button
                                             type="button"
                                             onClick={() => handleStartEdit(blog)}
-                                            className="rounded-lg p-1.5 text-[#3b577a] hover:bg-[#edf5ff] hover:text-[#1d4ed8] transition"
+                                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#cbe0fb] bg-white text-[#3b577a] shadow-2xs hover:bg-[#edf5ff] hover:text-[#1d4ed8] hover:border-blue-400 transition cursor-pointer"
                                             title="Edit Blog"
                                           >
-                                            <Edit className="h-4 w-4" />
+                                            <Edit className="h-3.5 w-3.5" />
                                           </button>
                                           <button
                                             type="button"
                                             onClick={() => handleDelete(blog.id)}
-                                            className="rounded-lg p-1.5 text-[#dc2626] hover:bg-[#fee2e2] transition"
+                                            className="flex h-8 w-8 items-center justify-center rounded-xl border border-rose-200 bg-white text-[#dc2626] shadow-2xs hover:bg-[#fee2e2] hover:border-rose-300 transition cursor-pointer"
                                             title="Delete Blog"
                                           >
-                                            <Trash2 className="h-4 w-4" />
+                                            <Trash2 className="h-3.5 w-3.5" />
                                           </button>
                                         </div>
                                       </td>

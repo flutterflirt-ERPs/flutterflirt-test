@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -21,7 +21,10 @@ import {
   Layers,
   Clock,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  Info,
+  Link2
 } from "lucide-react";
 
 interface Product {
@@ -35,7 +38,7 @@ interface Product {
   demoDbUrl?: string;
   accentColor: string;
   icon?: React.ComponentType<{ className?: string }>;
-  keyFeatures: string[];
+  keyFeatures: (string | { title?: string; desc?: string })[];
   metrics: { label: string; value: string }[];
   previewTags: string[];
 }
@@ -76,12 +79,15 @@ function SimpleProductCard({
         {product.keyFeatures && product.keyFeatures.length > 0 && (
           <div className="mt-3.5 border-t border-slate-100 pt-3">
             <ul className="space-y-1.5">
-              {product.keyFeatures.slice(0, 3).map((feat, idx) => (
-                <li key={idx} className="flex items-start gap-1.5 text-xs text-slate-700">
-                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-600 mt-0.5" />
-                  <span className="line-clamp-1">{feat}</span>
-                </li>
-              ))}
+              {product.keyFeatures.slice(0, 3).map((feat, idx) => {
+                const text = typeof feat === "string" ? feat : (feat?.title || feat?.desc || "");
+                return (
+                  <li key={idx} className="flex items-start gap-1.5 text-xs text-slate-700">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-600 mt-0.5" />
+                    <span className="line-clamp-1">{text}</span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
@@ -175,6 +181,21 @@ export default function OurProductContent() {
   const [demoSuccess, setDemoSuccess] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // OTP Verification Step State
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -204,13 +225,96 @@ export default function OurProductContent() {
     setSelectedProductForDemo(product || null);
     setDemoSuccess(false);
     setFeedbackMsg(null);
+    setStep("form");
+    setOtpDigits(["", "", "", "", "", ""]);
     setDemoModalOpen(true);
   };
 
-  const handleDemoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!formData.fullName.trim() || !formData.workEmail.trim() || !formData.companyName.trim()) {
       setFeedbackMsg({ type: "error", text: "Please enter your full name, work email, and company." });
+      return;
+    }
+
+    try {
+      setIsSendingOtp(true);
+      setFeedbackMsg(null);
+      const res = await fetch(`${API_URL}/api/demo-requests/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workEmail: formData.workEmail.trim(),
+          fullName: formData.fullName.trim(),
+          productInterested: selectedProductForDemo ? selectedProductForDemo.title : "Dynamics 365 Finance & Operations",
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setStep("otp");
+        setOtpDigits(["", "", "", "", "", ""]);
+        setResendCooldown(45);
+        setFeedbackMsg(null);
+        setTimeout(() => {
+          otpInputRefs.current[0]?.focus();
+        }, 150);
+      } else {
+        setFeedbackMsg({ type: "error", text: data.message || "Failed to send verification code." });
+      }
+    } catch {
+      setFeedbackMsg({ type: "error", text: "Network connection error. Please try again." });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleOtpDigitChange = (index: number, val: string) => {
+    const clean = val.replace(/[^0-9]/g, "");
+    const updated = [...otpDigits];
+
+    if (!clean) {
+      updated[index] = "";
+      setOtpDigits(updated);
+      return;
+    }
+
+    // Support typing single digit or multiple
+    updated[index] = clean[clean.length - 1];
+    setOtpDigits(updated);
+
+    // Auto-advance
+    if (index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, 6);
+    if (!pasted) return;
+
+    const updated = [...otpDigits];
+    for (let i = 0; i < 6; i++) {
+      updated[i] = pasted[i] || "";
+    }
+    setOtpDigits(updated);
+
+    const focusIdx = Math.min(pasted.length, 5);
+    otpInputRefs.current[focusIdx]?.focus();
+  };
+
+  const handleVerifyOtpAndGenerateDemo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fullOtp = otpDigits.join("").trim();
+    if (fullOtp.length !== 6) {
+      setFeedbackMsg({ type: "error", text: "Please enter the complete 6-digit verification code." });
       return;
     }
 
@@ -228,18 +332,16 @@ export default function OurProductContent() {
           companySize: formData.companySize,
           productInterested: selectedProductForDemo ? selectedProductForDemo.title : "Dynamics 365 Finance & Operations",
           notes: formData.notes,
+          otpCode: fullOtp,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
         setDemoSuccess(true);
-        setFeedbackMsg({
-          type: "success",
-          text: `Demo credentials delivered to ${formData.workEmail}!`,
-        });
+        setFeedbackMsg(null);
       } else {
-        setFeedbackMsg({ type: "error", text: data.message || "Failed to submit demo request." });
+        setFeedbackMsg({ type: "error", text: data.message || "Verification failed. Please check your code." });
       }
     } catch {
       setFeedbackMsg({ type: "error", text: "Network connection error. Please try again." });
@@ -335,7 +437,7 @@ export default function OurProductContent() {
                 className="text-2xl sm:text-3xl font-bold text-[#050505] leading-none"
                 style={{ fontFamily: "var(--font-geist), Georgia, serif" }}
               >
-                48 Hours
+                6 Hours
               </p>
               <p className="text-xs text-[#647b9b] mt-1.5 font-medium">Valid from First Login</p>
             </div>
@@ -544,57 +646,238 @@ export default function OurProductContent() {
       {/* ── 5. REQUEST DEMO MODAL ── */}
       {demoModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setDemoModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
+          <div className="bg-white rounded-[28px] max-w-lg w-full shadow-2xl border border-slate-100 relative max-h-[92vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95">
             {demoSuccess ? (
-              <div className="text-center py-6">
-                <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-600">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900">Credentials Will Be Mailed To You!</h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
-                  Your demo credentials have been generated and dispatched to <strong className="text-slate-900">{formData.workEmail}</strong>.
-                </p>
-
-                <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200 text-left text-xs space-y-2 text-slate-600">
-                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" /> Demo Notice & Access Rules:
+              <div className="flex flex-col h-full overflow-y-auto">
+                {/* Header Strip with Flutterflirt Cloud Logo & Close Button */}
+                <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-xs">
+                      <Sparkles className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-base font-bold tracking-tight text-slate-900">
+                      Flutterflirt Cloud
+                    </span>
                   </div>
-                  <p className="flex items-start gap-1.5">
-                    <span className="text-blue-600 font-bold">&bull;</span>
-                    <span><strong>Shared B2B SaaS Demo:</strong> This is an interactive shared B2B SaaS demo environment pre-configured for operational evaluation.</span>
-                  </p>
-                  <p className="flex items-start gap-1.5">
-                    <span className="text-blue-600 font-bold">&bull;</span>
-                    <span><strong>Application:</strong> {selectedProductForDemo?.title || "Dynamics 365 Finance & Operations"}</span>
-                  </p>
-                  <p className="flex items-start gap-1.5">
-                    <span className="text-blue-600 font-bold">&bull;</span>
-                    <span><strong>Login URL:</strong> Check your inbox at <span className="font-semibold text-slate-900">{formData.workEmail}</span> for your direct access link and temporary password.</span>
-                  </p>
-                  <p className="flex items-start gap-1.5 text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium">
-                    <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <span><strong>48-Hour Timer:</strong> Access is valid for exactly <strong>48 hours from your first login</strong>. Closing the window or waiting does not consume any trial time until you sign in.</span>
-                  </p>
-                </div>
 
-                <div className="mt-6">
                   <button
                     onClick={() => setDemoModalOpen(false)}
-                    className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                    title="Close"
                   >
-                    Got It, Close
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
+
+                {/* Modal Body */}
+                <div className="p-6 sm:p-7 space-y-6">
+                  {/* Status Headline */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+                        <Check className="w-5 h-5 stroke-[2.5]" />
+                      </div>
+                      <h3 className="text-2xl font-bold tracking-tight text-slate-900">
+                        Demo Access Ready
+                      </h3>
+                    </div>
+                    <p className="text-sm text-slate-600 leading-relaxed pt-1">
+                      Your demo credentials have been generated and sent to{" "}
+                      <strong className="text-slate-900 font-bold">{formData.workEmail}</strong>.
+                    </p>
+                  </div>
+
+                  {/* Summary Details Rows */}
+                  <div className="space-y-4 pt-1">
+                    {/* Row 1: Application */}
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 mt-0.5">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
+                        <span className="font-semibold text-slate-700">Application</span>
+                        <span className="font-bold text-slate-900">
+                          {selectedProductForDemo?.title || "Cashpilot"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 2: Login URL */}
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 mt-0.5">
+                        <Link2 className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
+                        <span className="font-semibold text-slate-700">Login URL</span>
+                        <span className="text-slate-600">
+                          Check your inbox for the access link
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Row 3: Demo Validity */}
+                    <div className="flex items-start gap-3.5">
+                      <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0 mt-0.5">
+                        <Clock className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-sm">
+                        <span className="font-semibold text-slate-700">Demo Validity</span>
+                        <span className="text-slate-900">
+                          <strong className="font-bold text-slate-900">6 hours</strong> from your first login
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Note Callout Box */}
+                  <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100/90 flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 mb-0.5">Note</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Access is valid for exactly 6 hours from your first login. Closing the window or waiting does not consume your trial time.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer Actions: Open Mail & Got It */}
+                  <div className="pt-2 flex items-center justify-end gap-3">
+                    {/* Open Mail button (Opens mail client or webmail) */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const emailDomain = formData.workEmail.split("@")[1]?.toLowerCase() || "";
+                        if (emailDomain.includes("gmail.com")) {
+                          window.open("https://mail.google.com", "_blank");
+                        } else if (emailDomain.includes("outlook.com") || emailDomain.includes("hotmail.com")) {
+                          window.open("https://outlook.live.com", "_blank");
+                        } else if (emailDomain.includes("yahoo.com")) {
+                          window.open("https://mail.yahoo.com", "_blank");
+                        } else {
+                          window.open(`mailto:${formData.workEmail}`);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm shadow-2xs transition active:scale-98 cursor-pointer"
+                    >
+                      <Mail className="w-4 h-4 text-slate-500" />
+                      <span>Open Mail</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDemoModalOpen(false)}
+                      className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-sm shadow-blue-500/20 transition active:scale-98 cursor-pointer"
+                    >
+                      Got It
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : step === "otp" ? (
+              /* OTP VERIFICATION STEP */
+              <div className="p-6 sm:p-8 overflow-y-auto">
+                <button
+                  onClick={() => setDemoModalOpen(false)}
+                  className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                <div className="mb-6 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3 shadow-xs border border-blue-100/60">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                    Verify Your Email
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-md mx-auto">
+                    We sent a 6-digit confirmation code to{" "}
+                    <span className="font-semibold text-slate-800 whitespace-nowrap">{formData.workEmail}</span>. Enter the code below to proceed.
+                  </p>
+                </div>
+
+                {feedbackMsg && (
+                  <div className={`p-3 rounded-xl text-xs mb-5 font-semibold text-center ${
+                    feedbackMsg.type === "error" 
+                      ? "bg-rose-50 text-rose-700 border border-rose-200" 
+                      : "bg-slate-50 text-slate-700 border border-slate-200"
+                  }`}>
+                    {feedbackMsg.text}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerifyOtpAndGenerateDemo} className="space-y-6 text-left">
+                  <div>
+                    {/* 6 Individual Code Digit Boxes */}
+                    <div className="flex items-center justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
+                      {otpDigits.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={(el) => {
+                            otpInputRefs.current[idx] = el;
+                          }}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-xl border border-slate-200 bg-white text-slate-900 shadow-2xs focus:border-blue-600 focus:ring-3 focus:ring-blue-100 focus:outline-none transition-all"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <button
+                      type="submit"
+                      disabled={submittingDemo || otpDigits.join("").trim().length !== 6}
+                      className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide shadow-xs active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                    >
+                      {submittingDemo ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Verifying & Generating Demo...</span>
+                        </>
+                      ) : (
+                        <span>Verify & Access Demo</span>
+                      )}
+                    </button>
+
+                    <div className="flex items-center justify-between text-xs pt-1 px-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStep("form");
+                          setFeedbackMsg(null);
+                        }}
+                        className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer transition"
+                      >
+                        &larr; Change Email
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtp()}
+                        disabled={resendCooldown > 0 || isSendingOtp}
+                        className="text-blue-600 hover:text-blue-800 font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition"
+                      >
+                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Code"}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               </div>
             ) : (
-              <div>
+              <div className="p-6 sm:p-8 overflow-y-auto">
+                <button
+                  onClick={() => setDemoModalOpen(false)}
+                  className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
                 <div className="mb-5">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
                     {selectedProductForDemo ? selectedProductForDemo.badge : "Enterprise Cloud Demo"}
@@ -617,7 +900,7 @@ export default function OurProductContent() {
                   </div>
                 )}
 
-                <form onSubmit={handleDemoSubmit} className="space-y-3.5 text-left text-xs">
+                <form onSubmit={handleSendOtp} className="space-y-3.5 text-left text-xs">
                   <div>
                     <label className="block font-bold text-slate-700 uppercase tracking-wider mb-1">
                       Full Name *
@@ -715,20 +998,20 @@ export default function OurProductContent() {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      disabled={submittingDemo}
+                      disabled={isSendingOtp}
                       className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs tracking-wide shadow-xs active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
-                      {submittingDemo ? (
+                      {isSendingOtp ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Generating Credentials & Sending Email...</span>
+                          <span>Sending Verification Code...</span>
                         </>
                       ) : (
-                        <span>Request Demo & Receive Credentials</span>
+                        <span>Continue & Verify Email</span>
                       )}
                     </button>
                     <p className="text-[11px] text-slate-400 text-center mt-2">
-                      Credentials will be emailed immediately. Your 48h timer begins on first login.
+                      A 6-digit confirmation code will be sent to your work email.
                     </p>
                   </div>
                 </form>
@@ -796,12 +1079,19 @@ export default function OurProductContent() {
                   Key Capabilities & Modules Included
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {detailsProduct.keyFeatures.map((feat, idx) => (
-                    <div key={idx} className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-700">
-                      <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </div>
-                  ))}
+                  {detailsProduct.keyFeatures.map((feat, idx) => {
+                    const titleText = typeof feat === "string" ? feat : (feat?.title || "");
+                    const descText = typeof feat === "object" ? feat?.desc : null;
+                    return (
+                      <div key={idx} className="flex items-start gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-700">
+                        <Check className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">{titleText}</span>
+                          {descText && <p className="text-[11px] text-slate-500 mt-0.5">{descText}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

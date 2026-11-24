@@ -250,7 +250,7 @@ export default function QueriesPage() {
           onClose={() => setToastMessage(null)}
         />
 
-        <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 w-full min-w-0 pt-4 md:pt-6">
+        <div className="mx-auto max-w-[1400px] px-3 sm:px-6 lg:px-8 w-full min-w-0 pt-4 md:pt-6 pl-14 sm:pl-16 md:pl-8">
 
           {/* Compact Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#cbdff8]/70 pb-4 mb-5">
@@ -354,7 +354,7 @@ export default function QueriesPage() {
                         <th className="px-4 lg:px-6 py-3.5 font-bold">Company</th>
                         <th className="px-4 lg:px-6 py-3.5 font-bold">Date Received</th>
                         <th className="px-4 lg:px-6 py-3.5 font-bold text-center">Status</th>
-                        <th className="px-4 lg:px-6 py-3.5 font-bold text-right">Actions</th>
+                        <th className="px-4 lg:px-6 py-3.5 font-bold text-right min-w-[130px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#e5effb]">
@@ -379,12 +379,12 @@ export default function QueriesPage() {
                           <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-center">
                             <StatusBadge status={q.status} />
                           </td>
-                          <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className="whitespace-nowrap px-4 lg:px-6 py-3.5 text-right min-w-[130px]">
+                            <div className="flex items-center justify-end gap-1.5 shrink-0">
                               {/* View / Reply Button */}
                               <button
                                 onClick={() => { setSelectedQuery(q); setReplyText(""); }}
-                                className="p-1.5 rounded-lg border border-[#cbe0fb] bg-white text-[#2563eb] hover:bg-[#edf5ff] transition shadow-xs"
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-[#cbe0fb] bg-white text-[#2563eb] hover:bg-[#edf5ff] transition shadow-2xs"
                                 title="View / Reply"
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -394,8 +394,8 @@ export default function QueriesPage() {
                               <button
                                 onClick={() => updateStatus(q.id, 'closed')}
                                 disabled={q.status === 'closed'}
-                                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                                title={q.status === 'Closed' ? "Already Closed" : "Close Request"}
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={q.status === 'closed' ? "Already Closed" : "Close Request"}
                               >
                                 <X className="w-3.5 h-3.5" />
                               </button>
@@ -403,7 +403,7 @@ export default function QueriesPage() {
                               {/* Delete Button */}
                               <button
                                 onClick={() => handleDeleteClick(q)}
-                                className="p-1.5 rounded-lg border border-rose-200 bg-white text-[#dc2626] hover:bg-rose-50 transition shadow-xs"
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-rose-200 bg-white text-[#dc2626] hover:bg-rose-50 transition shadow-2xs"
                                 title="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />

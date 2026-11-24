@@ -76,10 +76,6 @@ export default function DemoRequestsPage() {
   const [selectedSession, setSelectedSession] = useState<DemoSession | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Extend Modal state
-  const [extendModalSession, setExtendModalSession] = useState<DemoSession | null>(null);
-  const [extendHours, setExtendHours] = useState(24);
-
   // Gateway Simulation Modal
   const [simulatingSession, setSimulatingSession] = useState<DemoSession | null>(null);
   const [simPassword, setSimPassword] = useState("");
@@ -138,7 +134,7 @@ export default function DemoRequestsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast("success", `Approved! Credentials generated and status set to Ready (48h clock will start on first login).`);
+        showToast("success", `Approved! Credentials generated and status set to Ready (6h clock will start on first login).`);
         setSessions((prev) => prev.map((s) => (s.id === session.id ? data.session : s)));
         if (selectedSession?.id === session.id) {
           setSelectedSession(data.session);
@@ -148,37 +144,6 @@ export default function DemoRequestsPage() {
       }
     } catch {
       showToast("error", "Network error approving demo");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // 2. Extend Expiry (+24h or +48h)
-  const handleExtend = async () => {
-    if (!token || !extendModalSession) return;
-    try {
-      setActionLoading(true);
-      const res = await fetch(`${API_URL}/api/admin/demo-sessions/${extendModalSession.id}/extend`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ additionalHours: extendHours }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast("success", `Demo validity extended by ${extendHours} hours!`);
-        setSessions((prev) => prev.map((s) => (s.id === extendModalSession.id ? data.session : s)));
-        setExtendModalSession(null);
-        if (selectedSession?.id === extendModalSession.id) {
-          setSelectedSession(data.session);
-        }
-      } else {
-        showToast("error", data.message || "Failed to extend demo");
-      }
-    } catch {
-      showToast("error", "Network error extending demo");
     } finally {
       setActionLoading(false);
     }
@@ -222,7 +187,7 @@ export default function DemoRequestsPage() {
       const data = await res.json();
       if (res.ok) {
         setSimResult(`Success: ${data.message} (isFirstLogin: ${data.isFirstLogin})`);
-        showToast("success", data.isFirstLogin ? "First login verified! 48h timer started." : "Subsequent login verified.");
+        showToast("success", data.isFirstLogin ? "First login verified! 6h timer started." : "Subsequent login verified.");
         fetchDemoSessions(token!);
       } else {
         setSimResult(`Auth Blocked: ${data.message}`);
@@ -279,21 +244,21 @@ export default function DemoRequestsPage() {
           />
         )}
 
-        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-6">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8 w-full pt-4 md:pt-6 pl-14 sm:pl-16 md:pl-8">
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#cbdff8]/70 pb-4 mb-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[#cbe0fb] shadow-xs text-[#2563eb]">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-black tracking-tight text-[#0f172a] sm:text-2xl">
-                    Demo User Activity & 48h Expiry Tracker
+                    Demo User Activity & 6h Expiry Tracker
                   </h1>
                 </div>
                 <p className="text-xs text-[#64748b]">
-                  Instant credential delivery system. Monitor active user logins, evaluate sessions, and track 48h expiry.
+                  Instant credential delivery system. Monitor active user logins, evaluate sessions, and track 6h expiry.
                 </p>
               </div>
             </div>
@@ -302,11 +267,18 @@ export default function DemoRequestsPage() {
               <button
                 onClick={() => fetchDemoSessions(token!)}
                 disabled={refreshing}
-                className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-[#cbe0fb] text-[#1e293b] font-semibold text-xs rounded-xl hover:bg-[#eff6ff] hover:border-blue-400 transition-all shadow-xs cursor-pointer"
+                className="group relative inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-white/90 backdrop-blur-md border border-[#cbe0fb] hover:border-blue-500/60 shadow-[0_4px_16px_rgba(37,99,235,0.08)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.16)] text-[#10223d] font-bold text-xs transition-all duration-300 active:scale-95 disabled:opacity-50 cursor-pointer overflow-hidden"
                 title="Refresh demo requests and sync live login status"
               >
-                <RefreshCw className={`w-4 h-4 text-[#2563eb] ${refreshing ? "animate-spin" : ""}`} />
-                <span>{refreshing ? "Refreshing..." : "Refresh Records"}</span>
+
+                {/* Spinning Icon */}
+                <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : "group-hover:rotate-180 transition-transform duration-500"}`} />
+                </div>
+
+                <span className="tracking-tight text-slate-700 group-hover:text-blue-600 transition-colors">
+                  {refreshing ? "Syncing..." : "Sync Data"}
+                </span>
               </button>
             </div>
           </div>
@@ -316,7 +288,7 @@ export default function DemoRequestsPage() {
             <div className="bg-white border border-[#cbe0fb] rounded-2xl p-4 shadow-2xs">
               <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748b]">Active Demos (Clock Running)</div>
               <div className="text-2xl font-black text-emerald-600 mt-1">{counts.active}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">Under 48-hour access</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Under 6-hour access</div>
             </div>
 
             <div className="bg-white border border-[#cbe0fb] rounded-2xl p-4 shadow-2xs">
@@ -334,7 +306,7 @@ export default function DemoRequestsPage() {
             <div className="bg-white border border-[#cbe0fb] rounded-2xl p-4 shadow-2xs">
               <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748b]">Concluded Demos</div>
               <div className="text-2xl font-black text-slate-500 mt-1">{counts.expired}</div>
-              <div className="text-[11px] text-slate-500 mt-0.5">48 hours expired</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">6 hours expired</div>
             </div>
           </div>
 
@@ -363,16 +335,14 @@ export default function DemoRequestsPage() {
                   <button
                     key={tab.key}
                     onClick={() => setStatusFilter(tab.key)}
-                    className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${
-                      statusFilter === tab.key
-                        ? "bg-[#2563eb] text-white shadow-xs"
-                        : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 ${statusFilter === tab.key
+                      ? "bg-[#2563eb] text-white shadow-xs"
+                      : "bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100"
+                      }`}
                   >
                     <span>{tab.label}</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      statusFilter === tab.key ? "bg-blue-800 text-white" : "bg-slate-200 text-slate-700"
-                    }`}>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${statusFilter === tab.key ? "bg-blue-800 text-white" : "bg-slate-200 text-slate-700"
+                      }`}>
                       {tab.count}
                     </span>
                   </button>
@@ -405,7 +375,7 @@ export default function DemoRequestsPage() {
                       <th className="py-3 px-4">First Login</th>
                       <th className="py-3 px-4">Expires At</th>
                       <th className="py-3 px-4">Time Remaining</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right min-w-[130px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -433,12 +403,11 @@ export default function DemoRequestsPage() {
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                              isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
                               isReady ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                              isPending ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                              "bg-slate-100 text-slate-600 border border-slate-200"
-                            }`}>
+                                isPending ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                                  "bg-slate-100 text-slate-600 border border-slate-200"
+                              }`}>
                               {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                               {isReady && <Clock className="w-3 h-3" />}
                               <span className="capitalize">{session.status}</span>
@@ -476,24 +445,23 @@ export default function DemoRequestsPage() {
                           </td>
 
                           <td className="py-3.5 px-4">
-                            <div className={`font-semibold text-[11px] ${
-                              isActive ? "text-emerald-700 font-bold" :
+                            <div className={`font-semibold text-[11px] ${isActive ? "text-emerald-700 font-bold" :
                               isReady ? "text-amber-700" :
-                              isExpired ? "text-slate-400" : "text-blue-700"
-                            }`}>
+                                isExpired ? "text-slate-400" : "text-blue-700"
+                              }`}>
                               {session.timeRemaining}
                             </div>
                           </td>
 
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
+                          <td className="py-3.5 px-4 text-right min-w-[130px] whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5 shrink-0">
                               {isPending && (
                                 <button
                                   onClick={() => handleApprove(session)}
                                   disabled={actionLoading}
-                                  className="px-2.5 py-1 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-[11px] inline-flex items-center gap-1 shadow-2xs"
+                                  className="px-2.5 py-1.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg transition-colors text-[11px] inline-flex items-center gap-1 shadow-2xs"
                                 >
-                                  <UserCheck className="w-3 h-3" /> Approve
+                                  <UserCheck className="w-3.5 h-3.5" /> Approve
                                 </button>
                               )}
 
@@ -504,35 +472,25 @@ export default function DemoRequestsPage() {
                                   setSimResult(null);
                                 }}
                                 title="Simulate Gateway Login Event"
-                                className="p-1.5 rounded-lg border border-[#cbe0fb] bg-white text-slate-600 hover:text-[#2563eb] hover:bg-[#eff6ff] transition-colors"
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-[#cbe0fb] bg-white text-slate-700 hover:text-[#2563eb] hover:bg-[#eff6ff] transition-colors shadow-2xs"
                               >
-                                <Play className="w-3.5 h-3.5" />
+                                <Play className="w-3.5 h-3.5 text-slate-700" />
                               </button>
-
-                              {(isActive || isExpired) && (
-                                <button
-                                  onClick={() => setExtendModalSession(session)}
-                                  title="Extend demo expiry (+24h/+48h)"
-                                  className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                >
-                                  <Calendar className="w-3.5 h-3.5" />
-                                </button>
-                              )}
 
                               <button
                                 onClick={() => setSelectedSession(session)}
                                 title="View details"
-                                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:text-slate-900 transition-colors"
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 transition-colors shadow-2xs"
                               >
-                                <Eye className="w-3.5 h-3.5" />
+                                <Eye className="w-3.5 h-3.5 text-slate-700" />
                               </button>
 
                               <button
                                 onClick={() => handleDelete(session.id)}
                                 title="Delete"
-                                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                className="h-8 w-8 inline-flex items-center justify-center shrink-0 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors shadow-2xs"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3.5 h-3.5 text-slate-500" />
                               </button>
                             </div>
                           </td>
@@ -611,7 +569,7 @@ export default function DemoRequestsPage() {
                   {selectedSession.targetSubdomain && (
                     <div className="pt-2 border-t border-blue-100/70 flex items-center justify-between text-[11px]">
                       <span className="text-slate-500">Access URL:</span>
-                      <a 
+                      <a
                         href={selectedSession.targetSubdomain.startsWith("http") ? selectedSession.targetSubdomain : `https://${selectedSession.targetSubdomain}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -639,7 +597,7 @@ export default function DemoRequestsPage() {
                     <span>{selectedSession.firstLoginAt ? new Date(selectedSession.firstLoginAt).toLocaleString() : "Awaiting First Login"}</span>
                   </div>
                   <div className="flex justify-between font-bold text-slate-900">
-                    <span>Expires At (+48h):</span>
+                    <span>Expires At (+6h):</span>
                     <span>{selectedSession.expiresAt ? new Date(selectedSession.expiresAt).toLocaleString() : "—"}</span>
                   </div>
                   <div className="flex justify-between text-slate-500">
@@ -687,53 +645,6 @@ export default function DemoRequestsPage() {
           </div>
         )}
 
-        {/* EXTEND EXPIRY MODAL */}
-        {extendModalSession && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs">
-            <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
-              <h3 className="text-base font-bold text-slate-900 mb-1">Extend Demo Expiry</h3>
-              <p className="text-xs text-slate-500 mb-4">
-                Add extra evaluation time for {extendModalSession.customerName} ({extendModalSession.demoId}).
-              </p>
-
-              <div className="space-y-2 mb-4">
-                {[24, 48, 72].map((hours) => (
-                  <button
-                    key={hours}
-                    type="button"
-                    onClick={() => setExtendHours(hours)}
-                    className={`w-full py-2.5 px-4 text-xs font-bold rounded-xl border text-left transition-all ${
-                      extendHours === hours
-                        ? "bg-blue-50 border-[#2563eb] text-[#2563eb]"
-                        : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    +{hours} Hours Extension
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setExtendModalSession(null)}
-                  className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleExtend}
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-[#2563eb] text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-sm"
-                >
-                  Confirm Extension
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* GATEWAY AUTH SIMULATOR MODAL */}
         {simulatingSession && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs">
@@ -752,7 +663,7 @@ export default function DemoRequestsPage() {
               </div>
 
               <p className="text-xs text-slate-500 mb-4">
-                Simulates the reverse proxy / gateway intercepting the customer signing in to test the 48-hour first-login trigger.
+                Simulates the reverse proxy / gateway intercepting the customer signing in to test the 6-hour first-login trigger.
               </p>
 
               <form onSubmit={handleSimulateLogin} className="space-y-3">

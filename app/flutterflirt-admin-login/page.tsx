@@ -79,75 +79,75 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#edf5ff] px-6 py-32">
-      <div className="w-full max-w-[440px] overflow-hidden rounded-[32px] border border-[#cbe0fb] bg-white/70 shadow-[0_20px_60px_rgba(30,60,110,0.08)] backdrop-blur-xl">
+    <main className="flex h-screen w-full items-center justify-center overflow-hidden bg-[#edf5ff] px-4 py-4">
+      <div className="w-full max-w-[420px] overflow-hidden rounded-[28px] border border-[#cbe0fb] bg-white/80 shadow-[0_20px_50px_rgba(30,60,110,0.08)] backdrop-blur-xl">
         {showForgotPassword ? (
-          <div className="p-10 md:p-12">
-            <div className="mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eff4fb] shadow-sm">
-              <Mail className="h-6 w-6 text-[#2563eb]" />
+          <div className="p-7 sm:p-8">
+            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eff4fb] shadow-sm">
+              <Mail className="h-5 w-5 text-[#2563eb]" />
             </div>
-            <h2 className="font-serif text-[28px] font-bold tracking-tight text-[#142845]">
+            <h2 className="font-serif text-[24px] font-bold tracking-tight text-[#142845]">
               Reset Password
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[#617b9b]">
+            <p className="mt-2 text-xs leading-relaxed text-[#617b9b]">
               Since your authentication is securely managed via environment variables, you cannot reset it here.
             </p>
-            <div className="mt-6 rounded-2xl border border-[#fee2e2] bg-[#fef2f2] p-5">
+            <div className="mt-5 rounded-2xl border border-[#fee2e2] bg-[#fef2f2] p-4">
               <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#dc2626]" />
-                <p className="text-sm font-semibold text-[#991b1b]">
-                  Please update the <code className="rounded bg-[#fca5a5] px-1.5 py-0.5 text-xs">ADMIN_PASSWORD</code> value directly in your backend <code className="rounded bg-[#fca5a5] px-1.5 py-0.5 text-xs">.env</code> file and restart the server to change your password.
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#dc2626]" />
+                <p className="text-xs font-semibold text-[#991b1b]">
+                  Please update the <code className="rounded bg-[#fca5a5] px-1 py-0.5 text-[11px]">ADMIN_PASSWORD</code> value directly in your backend <code className="rounded bg-[#fca5a5] px-1 py-0.5 text-[11px]">.env</code> file and restart the server to change your password.
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setShowForgotPassword(false)}
-              className="mt-8 flex w-full justify-center rounded-2xl bg-[#eff4fb] px-4 py-3.5 text-sm font-bold text-[#1e3a60] transition hover:bg-[#e2edf9]"
+              className="mt-6 flex w-full justify-center rounded-xl bg-[#eff4fb] px-4 py-3 text-sm font-bold text-[#1e3a60] transition hover:bg-[#e2edf9]"
             >
               Back to Login
             </button>
           </div>
         ) : (
-          <div className="p-10 md:p-12">
-            <div className="mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eff4fb] shadow-sm">
-              <Lock className="h-6 w-6 text-[#2563eb]" />
+          <div className="p-7 sm:p-8">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#eff4fb] shadow-sm">
+              <Lock className="h-5 w-5 text-[#2563eb]" />
             </div>
-            <h2 className="font-serif text-[32px] font-bold tracking-tight text-[#142845]">
+            <h2 className="font-serif text-[26px] font-bold tracking-tight text-[#142845]">
               Admin Access
             </h2>
-            <p className="mt-2 text-sm text-[#617b9b]">
+            <p className="mt-1 text-xs text-[#617b9b]">
               Sign in to manage your premium blog content.
             </p>
 
             {loginError && (
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-[#fee2e2] bg-[#fef2f2] p-4 text-sm font-semibold text-[#dc2626]">
+              <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-[#fee2e2] bg-[#fef2f2] p-3 text-xs font-semibold text-[#dc2626]">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <p>{loginError}</p>
               </div>
             )}
 
-            <form onSubmit={handleLogin} className="mt-8 space-y-5">
+            <form onSubmit={handleLogin} className="mt-5 space-y-4">
               <div>
-                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#3b5980]">
+                <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-[#3b5980]">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8babc6]" />
+                  <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8babc6]" />
                   <input
                     type="email"
                     required
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="E-mail Address"
-                    className="w-full rounded-2xl border border-[#cbdff8] bg-white py-3.5 pl-12 pr-4 text-[15px] font-medium text-[#112239] transition placeholder:text-[#9aaebd] focus:border-[#2563eb] focus:outline-none focus:ring-4 focus:ring-[#2563eb]/15"
+                    className="w-full rounded-xl border border-[#cbdff8] bg-white py-3 pl-10 pr-3.5 text-sm font-medium text-[#112239] transition placeholder:text-[#9aaebd] focus:border-[#2563eb] focus:outline-none focus:ring-4 focus:ring-[#2563eb]/15"
                   />
                 </div>
               </div>
 
               <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#3b5980]">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#3b5980]">
                     Password
                   </label>
                   <button
@@ -159,25 +159,25 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8babc6]" />
+                  <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8babc6]" />
                   <input
                     type={showPassword ? "text" : "password"}
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full rounded-2xl border border-[#cbdff8] bg-white py-3.5 pl-12 pr-12 text-[15px] font-medium text-[#112239] transition placeholder:text-[#9aaebd] focus:border-[#2563eb] focus:outline-none focus:ring-4 focus:ring-[#2563eb]/15"
+                    className="w-full rounded-xl border border-[#cbdff8] bg-white py-3 pl-10 pr-10 text-sm font-medium text-[#112239] transition placeholder:text-[#9aaebd] focus:border-[#2563eb] focus:outline-none focus:ring-4 focus:ring-[#2563eb]/15"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8babc6] hover:text-[#2563eb] transition p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#8babc6] transition hover:text-[#2563eb]"
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
+                      <EyeOff className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-5 w-5" />
+                      <Eye className="h-4 w-4" />
                     )}
                   </button>
                 </div>
@@ -186,10 +186,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="group mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#2563eb] px-4 py-4 text-[15px] font-bold text-white shadow-lg shadow-blue-500/30 transition hover:bg-[#1d4ed8] disabled:opacity-70"
+                className="group mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-4 py-3 text-sm font-bold text-white shadow-md shadow-blue-500/25 transition hover:shadow-lg hover:shadow-blue-500/35 active:scale-[0.99] disabled:opacity-70"
               >
                 {isLoggingIn ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
                     <span>Secure Login</span>
