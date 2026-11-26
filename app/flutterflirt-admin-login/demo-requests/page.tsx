@@ -200,16 +200,25 @@ export default function DemoRequestsPage() {
     }
   };
 
+  // Helper to get effective real-time status
+  const getEffectiveStatus = (s: DemoSession) => {
+    if (s.status === "active" && s.expiresAt && new Date(s.expiresAt).getTime() <= Date.now()) {
+      return "expired";
+    }
+    return s.status;
+  };
+
   // Filtered session records
   const filteredSessions = useMemo(() => {
     return sessions.filter((s) => {
+      const effectiveStatus = getEffectiveStatus(s);
       const matchesSearch =
         s.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.demoId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.workEmail.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === "all" || s.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || effectiveStatus === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [sessions, searchTerm, statusFilter]);
@@ -217,10 +226,10 @@ export default function DemoRequestsPage() {
   const counts = useMemo(() => {
     return {
       all: sessions.length,
-      pending: sessions.filter((s) => s.status === "pending").length,
-      ready: sessions.filter((s) => s.status === "ready").length,
-      active: sessions.filter((s) => s.status === "active").length,
-      expired: sessions.filter((s) => s.status === "expired").length,
+      pending: sessions.filter((s) => getEffectiveStatus(s) === "pending").length,
+      ready: sessions.filter((s) => getEffectiveStatus(s) === "ready").length,
+      active: sessions.filter((s) => getEffectiveStatus(s) === "active").length,
+      expired: sessions.filter((s) => getEffectiveStatus(s) === "expired").length,
     };
   }, [sessions]);
 
@@ -380,10 +389,11 @@ export default function DemoRequestsPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredSessions.map((session) => {
+                      const isTimePassed = session.expiresAt ? new Date(session.expiresAt).getTime() <= Date.now() : false;
+                      const isExpired = session.status === "expired" || (session.status === "active" && isTimePassed);
+                      const isActive = session.status === "active" && !isTimePassed;
                       const isPending = session.status === "pending";
                       const isReady = session.status === "ready";
-                      const isActive = session.status === "active";
-                      const isExpired = session.status === "expired";
 
                       return (
                         <tr key={session.id} className="hover:bg-slate-50/70 transition-colors">
@@ -410,7 +420,7 @@ export default function DemoRequestsPage() {
                               }`}>
                               {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
                               {isReady && <Clock className="w-3 h-3" />}
-                              <span className="capitalize">{session.status}</span>
+                              <span className="capitalize">{isExpired ? "expired" : session.status}</span>
                             </span>
                           </td>
 
