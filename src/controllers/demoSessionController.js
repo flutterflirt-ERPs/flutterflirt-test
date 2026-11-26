@@ -91,6 +91,8 @@ const normalizeProductKey = (name) => {
 // Normalize response row for consistent API contracts
 const normalizeSession = (row) => {
   let timeRemaining = null;
+  let computedStatus = row.status;
+
   if (row.status === 'active' && row.expires_at) {
     const diffMs = new Date(row.expires_at).getTime() - Date.now();
     if (diffMs > 0) {
@@ -99,6 +101,7 @@ const normalizeSession = (row) => {
       timeRemaining = `${hours}h ${mins}m remaining`;
     } else {
       timeRemaining = 'Expired';
+      computedStatus = 'expired';
     }
   } else if (row.status === 'ready') {
     timeRemaining = '6 hours (Starts on 1st login)';
@@ -128,7 +131,7 @@ const normalizeSession = (row) => {
     lastLoginAt: row.last_login_at,
     loginCount: row.login_count || 0,
     activityLog: row.activity_log || [],
-    status: row.status,
+    status: computedStatus,
     notes: row.notes,
     timeRemaining,
   };
@@ -1027,6 +1030,13 @@ const getAllDemoSessions = async (req, res) => {
     await ensureDemoSessionsTable();
     await seedDefaultDemos();
 
+    // 1. Immediately expire any sessions whose 6 hours / expires_at has passed
+    try {
+      await checkAndExpireSessions();
+    } catch (expireErr) {
+      console.warn('Inline checkAndExpireSessions warning:', expireErr.message);
+    }
+
     // Check if any 'ready' demo sessions have logged into their target product DB
     try {
       const readySessions = await query(
@@ -1134,12 +1144,14 @@ const getAllDemoSessions = async (req, res) => {
 
           if (hasLoggedIn) {
             const expiresAt = new Date(loginTimestamp.getTime() + 6 * 60 * 60 * 1000); // 6 hours demo timer
+            const isAlreadyExpired = expiresAt.getTime() <= Date.now();
+            const targetStatus = isAlreadyExpired ? 'expired' : 'active';
             const initialLog = [{ event: "First Successful Login via Product App", timestamp: loginTimestamp.toISOString(), client: row.application }];
             await query(
               `UPDATE demo_sessions
-               SET first_login_at = $1, expires_at = $2, last_login_at = $1, status = 'active', login_count = COALESCE(login_count, 0) + 1, activity_log = $3
-               WHERE id = $4`,
-              [loginTimestamp, expiresAt, JSON.stringify(initialLog), row.id]
+               SET first_login_at = $1, expires_at = $2, last_login_at = $1, status = $3, login_count = COALESCE(login_count, 0) + 1, activity_log = $4
+               WHERE id = $5`,
+              [loginTimestamp, expiresAt, targetStatus, JSON.stringify(initialLog), row.id]
             );
           }
 
